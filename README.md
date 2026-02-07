@@ -1,12 +1,6 @@
 # JEPA-T: Joint-Embedding Predictive Architecture with Text Fusion for Image Generation<br>
 
-This is the official repository for the paper:
-> **JEPA-T: Joint-Embedding Predictive Architecture with Text Fusion for Image Generation**
->
-> Siheng Wang\*<sup>†</sup>, Zhengtao Yao\*, Zhengdao Li, Junhao Dong, Yanshu Li, Yikai Li, Linshan Li, Haoyan Xu, Yijiang Li, Zhikang Dong, Huacan Wang,  Jifeng Shen<sup>#</sup>
->
-> \*Equal contribution. <sup>†</sup>Project lead. <sup>#</sup>Corresponding author.
->
+
 
 
 ---
@@ -53,7 +47,7 @@ bash scripts/jepat_base/large/huge.sh
 # 👍 Acknowlegements
 We sincerely thank the open-sourcing of these works where our code is based on [MAR](https://github.com/LTH14/mar.git)
 
-We thank [Zelin Zang](zangzelin@gmail.com) for helpful discussion.
+
 
 
 ## 🔒 License
