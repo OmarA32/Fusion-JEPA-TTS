@@ -1,0 +1,24 @@
+- `[x]` Phase 1 Pretraining Integration
+  - `[x]` Update `dataset.py` to match expected dictionary keys
+  - `[x]` Create `src/data/arabic_datamodule.py`
+  - `[x]` Create `configs/data/arabic_tts.yaml`
+  - `[x]` Create `train_arabic.ps1`
+  - `[x]` Run test training script
+- `[x]` Update PyTorch constraints to run on Windows/CPU if possible.
+- `[x]` Integrate HuggingFace dataset `MohamedRashad/common-voice-18-arabic`.
+- `[x]` Verify model configuration and mock pipeline shape compatibility.
+- `[x]` Ensure Audio-JEPA dataloaders pass data successfully for the `train_step`.
+- `[x]` Review user provided diagram for Context Encoder / Target Encoder.
+
+- `[x]` Phase 2 Zero-Shot TTS Integration
+  - `[x]` Update `arabic_dataset.py` to fetch a 3s `reference_audio` from the same `client_id` for each item.
+  - `[x]` Patch `fastpitch/model.py` to accept continuous `speaker_embedding` from Audio-JEPA instead of discrete `speaker` ID.
+  - `[x]` Create `src/models/zero_shot_tts.py` to wrap Audio-JEPA Context Encoder + Projection Layer + FastPitch Decoder.
+  - `[x]` Add a test script `test_zero_shot.ps1` to run a forward pass verifying tensor dimensions match up.
+
+- `[/]` Phase 3: Full Training Integration (Overfit Test)
+  - `[ ]` Configure `arabic_dataset.py` or dataloader to use exactly 10 samples for a quick overfit test.
+  - `[ ]` Update `src/data/arabic_datamodule.py` with `TTSCollate` to structure batch inputs properly.
+  - `[ ]` Integrate `FastPitchLoss` into `ZeroShotTTS.training_step()`.
+  - `[ ]` Add audio generation callback/step in `ZeroShotTTS` to decode Mel -> Vocoder -> `.wav` and save it to disk.
+  - `[ ]` Create and run `train_zero_shot.py` using PyTorch Lightning trainer.

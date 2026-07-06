@@ -37,49 +37,59 @@ class ZeroShotTTS(LightningModule):
         self.decoder = FastPitch(**fastpitch_kwargs)
         
     def forward(self, inputs: Tuple, reference_spectrogram: torch.Tensor):
-        """
-        inputs: Tuple containing text symbols, mel target, lens, etc. for FastPitch
-        reference_spectrogram: [B, C, Freq, Time] spectrogram of the 3s reference audio
-        """
-        # A. Extract Speaker Fingerprint
-        # The context encoder returns patches [B, N, D]. We mean-pool to get a global representation [B, D].
+        # inputs: (text_padded, input_lengths, mel_padded, output_lengths, pitch_padded, energy_padded, speaker, attn_prior, audiopaths)
+        
+        # Extract Fingerprint
         patch_embeddings = self.context_encoder(reference_spectrogram)
         global_embedding = patch_embeddings.mean(dim=1)
-        
-        # B. Project to FastPitch Dimension
         speaker_embedding = self.proj(global_embedding)
         
-        # Replace the `speaker` index in the `inputs` tuple with the continuous speaker_embedding
-        # FastPitch expects inputs = (inputs, input_lens, mel_tgt, mel_lens, pitch_dense, energy_dense, speaker, attn_prior, audiopaths)
+        # Inject into FastPitch
         fastpitch_inputs = list(inputs)
         fastpitch_inputs[6] = speaker_embedding
-        fastpitch_inputs = tuple(fastpitch_inputs)
         
-        # C. Decode
-        mel_out, mel_out_postnet, dec_lens, dur_pred, pitch_pred, energy_pred, pitch_tgt, energy_tgt, attn_soft, attn_hard, attn_hard_dur, attn_logprob = self.decoder(fastpitch_inputs)
-        
-        return mel_out, mel_out_postnet, dur_pred, pitch_pred, energy_pred
+        # Return exact FastPitch outputs for the loss function
+        return self.decoder(tuple(fastpitch_inputs))
+
+    def infer(self, inputs: Tuple, reference_spectrogram: torch.Tensor):
+        patch_embeddings = self.context_encoder(reference_spectrogram)
+        global_embedding = patch_embeddings.mean(dim=1)
+        speaker_embedding = self.proj(global_embedding)
+        return self.decoder.infer(inputs[0], pace=1.0, speaker=speaker_embedding)
 
     def training_step(self, batch, batch_idx):
-        # We assume the batch provides the reference spectrogram and FastPitch inputs
-        fastpitch_inputs = batch['fastpitch_inputs']
-        reference_spectrogram = batch['reference_transformed_waveform']
+        from models.fastpitch.fastpitch.loss_function import FastPitchLoss
+        if not hasattr(self, 'loss_fn'):
+            self.loss_fn = FastPitchLoss()
+            
+        fp_inputs, ref_specs = batch
+        mel_tgt, in_lens, out_lens = fp_inputs[2], fp_inputs[1], fp_inputs[3]
+        targets = (mel_tgt, in_lens, out_lens)
+
+        model_out = self(fp_inputs, ref_specs)
+        loss, meta = self.loss_fn(model_out, targets)
         
-        # Forward pass
-        mel_out, mel_out_postnet, dur_pred, pitch_pred, energy_pred = self(fastpitch_inputs, reference_spectrogram)
+        self.log('train_loss', loss, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        if not hasattr(self, 'loss_fn'):
+            from models.fastpitch.fastpitch.loss_function import FastPitchLoss
+            self.loss_fn = FastPitchLoss()
+            
+        fp_inputs, ref_specs = batch
+        mel_tgt, in_lens, out_lens = fp_inputs[2], fp_inputs[1], fp_inputs[3]
+        targets = (mel_tgt, in_lens, out_lens)
         
-        # We would compute the loss here (e.g. MSE between mel_out and mel_tgt)
-        # For the sake of Phase 2 structural validation, we use a dummy loss 
-        # (The actual loss requires importing FastPitchLoss)
-        mel_tgt = fastpitch_inputs[2]
-        loss = torch.nn.functional.mse_loss(mel_out, mel_tgt)
+        model_out = self(fp_inputs, ref_specs)
+        loss, meta = self.loss_fn(model_out, targets)
         
-        self.log("train/loss", loss)
+        self.log('val_loss', loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
+        optimizer = torch.optim.SGD(
             filter(lambda p: p.requires_grad, self.parameters()), 
-            lr=self.learning_rate
+            lr=1e-8
         )
         return optimizer
