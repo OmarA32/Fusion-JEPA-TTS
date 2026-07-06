@@ -1,0 +1,44 @@
+_target_: src.data.audioset_datamodule.AudioSetDataModule
+
+defaults:
+  - _self_
+
+# DataLoader configurations
+batch_size: 4
+num_workers: 0 # Windows compatibility
+pin_memory: false
+persistent_workers: false
+
+# Frontend parameters
+sr: 32000
+clip_length: 10 # Seconds
+classes_num: 1 # We don't care about classes for TTS, just self-supervised
+
+# Mock transforms to satisfy train.py
+transforms:
+  - n_mels: 128
+    target_time_bins: 256
+
+##################################################
+# Arabic TTS Dataset (HuggingFace)
+##################################################
+train_dataset:
+  _target_: src.data.components.arabic_dataset.AudioJEPADataset
+  hf_dataset_name: "MohamedRashad/common-voice-18-arabic"
+  split: "train[:1%]"
+  sample_rate: ${data.sr}
+  n_mels: 128
+
+val_dataset:
+  _target_: src.data.components.arabic_dataset.AudioJEPADataset
+  hf_dataset_name: "MohamedRashad/common-voice-18-arabic"
+  split: "train[:1%]"
+  sample_rate: ${data.sr}
+  n_mels: 128
+
+eval_dataset:
+  _target_: src.data.components.arabic_dataset.AudioJEPADataset
+  hf_dataset_name: "MohamedRashad/common-voice-18-arabic"
+  split: "train[:1%]"
+  sample_rate: ${data.sr}
+  n_mels: 128
