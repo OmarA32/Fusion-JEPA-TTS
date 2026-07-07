@@ -17,13 +17,20 @@ if tts_dir not in sys.path:
 from models.fastpitch.fastpitch.model import FastPitch
 
 class ZeroShotTTS(LightningModule):
-    def __init__(self, jepa_encoder_kwargs: Dict[str, Any], fastpitch_kwargs: Dict[str, Any], jepa_embed_dim: int = 1024, fastpitch_embed_dim: int = 384, learning_rate: float = 1e-4):
+    def __init__(self, jepa_encoder_kwargs: Dict[str, Any], fastpitch_kwargs: Dict[str, Any], jepa_embed_dim: int = 1024, fastpitch_embed_dim: int = 384, learning_rate: float = 1e-4, jepa_checkpoint_path: str = None):
         super().__init__()
         self.save_hyperparameters()
         self.learning_rate = learning_rate
 
         # 1. Context Encoder (Audio-JEPA)
-        self.context_encoder = VisionTransformer(**jepa_encoder_kwargs)
+        if jepa_checkpoint_path and os.path.exists(jepa_checkpoint_path):
+            from src.models.jepa_module import JEPAModule
+            print(f"Loading full JEPAModule from {jepa_checkpoint_path}")
+            jepa_module = JEPAModule.load_from_checkpoint(jepa_checkpoint_path)
+            self.context_encoder = jepa_module.encoder
+        else:
+            print("Warning: No JEPA checkpoint provided. Initializing random VisionTransformer.")
+            self.context_encoder = VisionTransformer(**jepa_encoder_kwargs)
         
         # We freeze the context encoder initially to stabilize FastPitch training
         for param in self.context_encoder.parameters():
@@ -60,7 +67,8 @@ class ZeroShotTTS(LightningModule):
     def training_step(self, batch, batch_idx):
         from models.fastpitch.fastpitch.loss_function import FastPitchLoss
         if not hasattr(self, 'loss_fn'):
-            self.loss_fn = FastPitchLoss()
+            from models.fastpitch.fastpitch.loss_function import FastPitchLoss
+            self.loss_fn = FastPitchLoss(pitch_predictor_loss_scale=0.0)
             
         fp_inputs, ref_specs = batch
         mel_tgt, in_lens, out_lens = fp_inputs[2], fp_inputs[1], fp_inputs[3]
@@ -75,7 +83,7 @@ class ZeroShotTTS(LightningModule):
     def validation_step(self, batch, batch_idx):
         if not hasattr(self, 'loss_fn'):
             from models.fastpitch.fastpitch.loss_function import FastPitchLoss
-            self.loss_fn = FastPitchLoss()
+            self.loss_fn = FastPitchLoss(pitch_predictor_loss_scale=0.0)
             
         fp_inputs, ref_specs = batch
         mel_tgt, in_lens, out_lens = fp_inputs[2], fp_inputs[1], fp_inputs[3]
@@ -88,8 +96,8 @@ class ZeroShotTTS(LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(
+        optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.parameters()), 
-            lr=1e-8
+            lr=self.learning_rate
         )
         return optimizer

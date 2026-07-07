@@ -279,18 +279,18 @@ class FastPitch(nn.Module):
         mel_max_len = mel_tgt.size(2)
 
         # Calculate speaker embedding
-        if self.speaker_emb is None:
-            spk_emb = 0
-        else:
-            if speaker.dim() >= 2:
-                # Continuous embedding provided directly (Batch, Dim) or (Batch, 1, Dim)
-                spk_emb = speaker
-                if spk_emb.dim() == 2:
-                    spk_emb = spk_emb.unsqueeze(1)
-            else:
-                # Discrete index lookup
-                spk_emb = self.speaker_emb(speaker).unsqueeze(1)
+        if isinstance(speaker, torch.Tensor) and speaker.dim() >= 2:
+            # Continuous embedding provided directly (Batch, Dim) or (Batch, 1, Dim)
+            spk_emb = speaker
+            if spk_emb.dim() == 2:
+                spk_emb = spk_emb.unsqueeze(1)
             spk_emb = spk_emb * self.speaker_emb_weight
+        elif self.speaker_emb is not None:
+            # Discrete index lookup
+            spk_emb = self.speaker_emb(speaker).unsqueeze(1)
+            spk_emb = spk_emb * self.speaker_emb_weight
+        else:
+            spk_emb = 0
 
         # Input FFT
         enc_out, enc_mask = self.encoder(inputs, conditioning=spk_emb)
@@ -359,21 +359,21 @@ class FastPitch(nn.Module):
               energy_tgt=None, pitch_transform=None, max_duration=75,
               speaker=0):
 
-        if self.speaker_emb is None:
-            spk_emb = 0
-        else:
-            if isinstance(speaker, torch.Tensor) and speaker.dim() >= 2:
-                # Continuous embedding provided directly
-                spk_emb = speaker
-                if spk_emb.dim() == 2:
-                    spk_emb = spk_emb.unsqueeze(1)
-            else:
-                # Discrete index lookup
-                if not isinstance(speaker, torch.Tensor):
-                    speaker = torch.tensor(speaker)
-                speaker = (torch.ones(inputs.size(0)).long().to(inputs.device) * speaker)
-                spk_emb = self.speaker_emb(speaker).unsqueeze(1)
+        if isinstance(speaker, torch.Tensor) and speaker.dim() >= 2:
+            # Continuous embedding provided directly
+            spk_emb = speaker
+            if spk_emb.dim() == 2:
+                spk_emb = spk_emb.unsqueeze(1)
             spk_emb = spk_emb * self.speaker_emb_weight
+        elif self.speaker_emb is not None:
+            # Discrete index lookup
+            if not isinstance(speaker, torch.Tensor):
+                speaker = torch.tensor(speaker)
+            speaker = (torch.ones(inputs.size(0)).long().to(inputs.device) * speaker)
+            spk_emb = self.speaker_emb(speaker).unsqueeze(1)
+            spk_emb = spk_emb * self.speaker_emb_weight
+        else:
+            spk_emb = 0
 
         # Input FFT
         enc_out, enc_mask = self.encoder(inputs, conditioning=spk_emb)

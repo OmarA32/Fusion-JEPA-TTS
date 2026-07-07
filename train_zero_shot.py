@@ -42,12 +42,15 @@ def main():
     
     from models.fastpitch import net_config
     
+    jepa_ckpt = os.path.join(PROJECT_ROOT, "Audio-JEPA", "logs", "train", "runs", "2026-07-06_18-09-56", "checkpoints", "last.ckpt")
+    
     model = ZeroShotTTS(
         jepa_encoder_kwargs=jepa_kwargs,
         fastpitch_kwargs=net_config,
         jepa_embed_dim=768,
         fastpitch_embed_dim=384,
-        learning_rate=1e-5
+        learning_rate=1e-5,
+        jepa_checkpoint_path=jepa_ckpt
     )
 
     # Initialize PyTorch Lightning Trainer

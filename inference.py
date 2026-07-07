@@ -42,10 +42,12 @@ def main(ckpt_path, out_dir):
             "depth": 2,
             "num_heads": 4,
         }
+        jepa_ckpt = os.path.join(PROJECT_ROOT, "Audio-JEPA", "logs", "train", "runs", "2026-07-06_18-09-56", "checkpoints", "last.ckpt")
         model = ZeroShotTTS(
             jepa_encoder_kwargs=jepa_encoder_kwargs,
             fastpitch_kwargs=fastpitch_kwargs,
-            jepa_embed_dim=768
+            jepa_embed_dim=768,
+            jepa_checkpoint_path=jepa_ckpt
         )
     
     model.eval()
