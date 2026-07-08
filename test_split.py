@@ -12,30 +12,61 @@ from data.dataset import JEPADataset
 from models.jepat_lightning import JEPATLightning
 from vocoder_manager import VocoderManager
 
+import re
+
 def get_latest_checkpoint(log_dir):
+    """Finds the most recent checkpoint between raw .pt files and Lightning .ckpt files."""
+    latest_pt = None
+    max_pt_epoch = -1
+    
+    if os.path.exists(log_dir):
+        for f in os.listdir(log_dir):
+            if f.startswith("jepa_epoch_") and f.endswith(".pt"):
+                try:
+                    epoch = int(re.search(r"epoch_(\d+)", f).group(1))
+                    if epoch > max_pt_epoch:
+                        max_pt_epoch = epoch
+                        latest_pt = os.path.join(log_dir, f)
+                except:
+                    pass
+                    
+    latest_ckpt = None
+    max_ckpt_epoch = -1
+    
     checkpoints_dir = os.path.join(log_dir, "lightning_logs")
-    if not os.path.exists(checkpoints_dir):
-        return None
-    versions = [d for d in os.listdir(checkpoints_dir) if d.startswith("version_")]
-    if not versions:
-        return None
-    versions.sort(key=lambda x: int(x.split("_")[1]), reverse=True)
-    latest_version = versions[0]
-    ckpt_dir = os.path.join(checkpoints_dir, latest_version, "checkpoints")
-    if not os.path.exists(ckpt_dir):
-        return None
-    ckpts = [f for f in os.listdir(ckpt_dir) if f.endswith(".ckpt")]
-    if not ckpts:
-        return None
+    if os.path.exists(checkpoints_dir):
+        versions = [d for d in os.listdir(checkpoints_dir) if d.startswith("version_")]
+        if versions:
+            versions.sort(key=lambda x: int(x.split("_")[1]), reverse=True)
+            for version in versions:
+                ckpt_dir = os.path.join(checkpoints_dir, version, "checkpoints")
+                if os.path.exists(ckpt_dir):
+                    ckpts = [f for f in os.listdir(ckpt_dir) if f.endswith(".ckpt")]
+                    for ckpt in ckpts:
+                        try:
+                            if "epoch=" in ckpt:
+                                epoch = int(re.search(r"epoch=(\d+)", ckpt).group(1))
+                                if epoch > max_ckpt_epoch:
+                                    max_ckpt_epoch = epoch
+                                    latest_ckpt = os.path.join(ckpt_dir, ckpt)
+                        except:
+                            pass
+                    
+                    if latest_ckpt:
+                        if "last.ckpt" in ckpts:
+                            latest_ckpt = os.path.join(ckpt_dir, "last.ckpt")
+                        break
+
+    if max_ckpt_epoch == -1 and max_pt_epoch == -1:
+        return None, None
         
-    # Always prioritize the 'last.ckpt' if it exists
-    if "last.ckpt" in ckpts:
-        return os.path.join(ckpt_dir, "last.ckpt")
-        
-    return os.path.join(ckpt_dir, ckpts[0])
+    if max_ckpt_epoch >= max_pt_epoch:
+        return latest_ckpt, "ckpt"
+    else:
+        return latest_pt, "pt"
 
 def generate_and_save(model, vocoder, text_input, output_path):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
     with torch.no_grad():
         generated_mel = model.model.sample_tokens(
             bsz=1,
@@ -61,16 +92,24 @@ def main():
     parser.add_argument("--index", type=int, default=None, help="Test a specific index only")
     args = parser.parse_args()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
     
     print("Loading Test Dataset...")
     test_dataset = JEPADataset(split="test")
     
     print("Loading JEPA-T Model...")
-    ckpt_path = get_latest_checkpoint("training_logs")
-    if ckpt_path:
-        print(f"Loading checkpoint: {ckpt_path}")
-        model = JEPATLightning.load_from_checkpoint(ckpt_path)
+    found_path, ckpt_type = get_latest_checkpoint("training_logs")
+    
+    if found_path and os.path.exists(found_path):
+        if ckpt_type == "pt":
+            print(f"Loading raw PyTorch XPU weights: {found_path}")
+            model = JEPATLightning()
+            checkpoint = torch.load(found_path, map_location="cpu")
+            model.model.load_state_dict(checkpoint['model_state_dict'])
+            model.ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
+        else:
+            print(f"Loading Lightning checkpoint: {found_path}")
+            model = JEPATLightning.load_from_checkpoint(found_path)
     else:
         print("WARNING: No trained weights found! Running with completely untrained model.")
         model = JEPATLightning()

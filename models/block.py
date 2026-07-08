@@ -69,10 +69,6 @@ class LayerNorm(nn.LayerNorm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, eps=1e-6)
 
-    def forward(self, *args, **kwargs):
-        with torch.cuda.amp.autocast(dtype=torch.float32):
-            return super().forward(*args, **kwargs)
-
 
 class Attention(nn.Module):
     def __init__(self,
