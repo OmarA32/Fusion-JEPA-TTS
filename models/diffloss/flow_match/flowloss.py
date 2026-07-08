@@ -32,7 +32,7 @@ class FlowMatchLoss(nn.Module):
     def sample(self, z, time_shifting_factor=1.0, cfg_scale=1.0, **kwargs):
         # diffusion loss sampling
         if not cfg_scale == 1.0:
-            noise = torch.randn(z.shape[0] // 2, self.in_channels).cuda()
+            noise = torch.randn(z.shape[0] // 2, self.in_channels).to(z.device)
             noise = torch.cat([noise, noise], dim=0)
             model_kwargs = dict(c=z, cfg_scale=cfg_scale)
             sample_fn = self.net.forward_with_cfg

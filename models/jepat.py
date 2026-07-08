@@ -13,11 +13,33 @@ from models.diffloss import FlowMatchLoss, GaussDiffLoss
 from models.jepaloss import JepaLoss
 import clip
 
+from text import arabic_to_tokens
+from text.symbols import symbols
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(1, max_len, d_model)
+        pe[0, :, 0::2] = torch.sin(position * div_term)
+        pe[0, :, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Arguments:
+            x: Tensor, shape ``[batch_size, seq_len, embedding_dim]``
+        """
+        x = x + self.pe[:, :x.size(1), :]
+        return self.dropout(x)
+
 
 def mask_by_order(mask_len, order, bsz, seq_len):
-    masking = torch.zeros(bsz, seq_len).cuda()
+    masking = torch.zeros(bsz, seq_len, device=order.device)
     masking = torch.scatter(
-        masking, dim=-1, index=order[:, :mask_len.long()], src=torch.ones(bsz, seq_len).cuda()).bool()
+        masking, dim=-1, index=order[:, :mask_len.long()], src=torch.ones(bsz, seq_len, device=order.device)).bool()
     return masking
 
 
@@ -28,12 +50,13 @@ class JEPAT(nn.Module):
         "clip"
     }
 
-    def __init__(self, img_size=256, vae_stride=16, patch_size=1,
+    def __init__(self, spec_height=128, spec_width=512, patch_size=16,
                  encoder_embed_dim=1024, encoder_depth=16, encoder_num_heads=16,
                  decoder_embed_dim=1024, decoder_depth=16, decoder_num_heads=16,
                  mlp_ratio=4, norm_layer=LayerNorm,
                  qk_norm: bool = False,
-                 vae_embed_dim=16,
+                 in_channels=1,
+                 language='arabic',
                  mask_ratio_min=0.7,
                  label_drop_prob=0.1,
                  class_num=1000,
@@ -54,14 +77,16 @@ class JEPAT(nn.Module):
 
         # --------------------------------------------------------------------------
         # VAE and patchify specifics
-        self.vae_embed_dim = vae_embed_dim
+        self.language = language
 
-        self.img_size = img_size
-        self.vae_stride = vae_stride
+        self.spec_height = spec_height
+        self.spec_width = spec_width
         self.patch_size = patch_size
-        self.seq_h = self.seq_w = img_size // vae_stride // patch_size
+        self.seq_h = spec_height // patch_size
+        self.seq_w = spec_width // patch_size
         self.seq_len = self.seq_h * self.seq_w
-        self.token_embed_dim = vae_embed_dim * patch_size**2
+        self.token_embed_dim = in_channels * patch_size**2
+        self.in_channels = in_channels
         self.encoder_embed_dim = encoder_embed_dim
         self.decoder_embed_dim = decoder_embed_dim
 
@@ -76,13 +101,20 @@ class JEPAT(nn.Module):
         )
 
         # --------------------------------------------------------------------------
-        # CLIP for Class Embedding
+        # Language Module Setup
         self.num_classes = class_num
-        # Load CLIP model
-        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device='cuda')
-        self.clip_model.eval()
-        for param in self.clip_model.parameters():
-            param.requires_grad = False
+        if self.language == 'english':
+            # Load CLIP model
+            self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device='cpu')
+            self.clip_model.eval()
+            for param in self.clip_model.parameters():
+                param.requires_grad = False
+        else:
+            # Arabic FastPitch Text Processor
+            self.phoneme_embedding = nn.Embedding(len(symbols), 512)
+            self.phoneme_pos_encoder = PositionalEncoding(d_model=512, dropout=0.1)
+            encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8, batch_first=True, dropout=0.1)
+            self.arabic_text_encoder = nn.TransformerEncoder(encoder_layer, num_layers=2)
         
         # CLIP output is 512, project to encoder_embed_dim
         self.class_emb = nn.Sequential(
@@ -246,7 +278,7 @@ class JEPAT(nn.Module):
     def unpatchify(self, x):
         bsz = x.shape[0]
         p = self.patch_size
-        c = self.vae_embed_dim
+        c = self.in_channels
         h_, w_ = self.seq_h, self.seq_w
 
         x = x.transpose(1, 2).reshape(bsz, c * p * p, h_ * w_)
@@ -262,7 +294,7 @@ class JEPAT(nn.Module):
             order = np.array(list(range(self.seq_len)))
             np.random.shuffle(order)
             orders.append(order)
-        orders = torch.Tensor(np.array(orders)).cuda().long()
+        orders = torch.Tensor(np.array(orders)).to(self.fake_latent.device).long()
         return orders
 
     def random_masking(self, x, orders):
@@ -285,7 +317,8 @@ class JEPAT(nn.Module):
         x = x + self.encoder_pos_embed_learned
 
         # append buffer
-        buffer = self.buffer + class_embedding.unsqueeze(1)
+        pooled_class_embedding = class_embedding.mean(dim=1) if class_embedding.dim() == 3 else class_embedding
+        buffer = self.buffer + pooled_class_embedding.unsqueeze(1)
         x = torch.cat([buffer.type_as(x), x], dim=1)
 
         mask_with_buffer = torch.cat(
@@ -319,9 +352,9 @@ class JEPAT(nn.Module):
 
         # If class_embedding is provided, add it to the decoder input
         if class_embedding is not None:
-        # Expand class_embedding to match the sequence length
-            class_embedding = class_embedding.unsqueeze(1).expand(bsz, x.size(1), -1)
-            x = x + class_embedding
+            pooled_class_embedding = class_embedding.mean(dim=1) if class_embedding.dim() == 3 else class_embedding
+            pooled_class_embedding = pooled_class_embedding.unsqueeze(1).expand(bsz, x.size(1), -1)
+            x = x + pooled_class_embedding
 
         mask_with_buffer = torch.cat(
             [torch.zeros(x.size(0), self.buffer_size, device=x.device), mask], dim=1)
@@ -372,42 +405,77 @@ class JEPAT(nn.Module):
     def encode_labels_with_clip(self, labels):
         """
         Encode labels using CLIP model
-        labels can be either:
-        - torch.Tensor of integers (class indices)
-        - list of strings (text descriptions)
         """
         with torch.no_grad():
             if isinstance(labels, torch.Tensor):
-                # If labels are integers, convert to text
                 text_labels = [f"a photo of class {int(label)}" for label in labels]
-                text_tokens = clip.tokenize(text_labels).cuda()
+                text_tokens = clip.tokenize(text_labels).to(self.fake_latent.device)
                 clip_features = self.clip_model.encode_text(text_tokens).float()
             elif isinstance(labels, list) and isinstance(labels[0], str):
-                # If labels are already text
-                text_tokens = clip.tokenize(labels).cuda()
+                text_tokens = clip.tokenize(labels).to(self.fake_latent.device)
                 clip_features = self.clip_model.encode_text(text_tokens).float()
             else:
-                # Fallback: assume labels are tensors that can be converted to int
                 text_labels = [f"a photo of class {int(label)}" for label in labels]
-                text_tokens = clip.tokenize(text_labels).cuda()
+                text_tokens = clip.tokenize(text_labels).to(self.fake_latent.device)
                 clip_features = self.clip_model.encode_text(text_tokens).float()
         
         return clip_features
 
+    def get_phoneme_embedding(self, text_tokens):
+        """
+        Arabic FastPitch Text Processor hook.
+        text_tokens can be a list of strings or an integer tensor [bsz, seq_len]
+        """
+        device = self.fake_latent.device
+        
+        if isinstance(text_tokens, list):
+            bsz = len(text_tokens)
+            token_lists = []
+            max_len = 0
+            for t in text_tokens:
+                try:
+                    from text import tokens_to_ids
+                    phonemes = arabic_to_tokens(t)
+                    tokens = tokens_to_ids(phonemes)
+                except Exception as e:
+                    print(f"Error phonemizing '{t}': {e}. Using dummy tokens.")
+                    tokens = [0, 1, 2] # Dummy fallback
+                token_lists.append(tokens)
+                max_len = max(max_len, len(tokens))
+                
+            padded_tokens = torch.zeros(bsz, max_len, dtype=torch.long, device=device)
+            for i, tokens in enumerate(token_lists):
+                padded_tokens[i, :len(tokens)] = torch.tensor(tokens, dtype=torch.long, device=device)
+        else:
+            # Assumed to be a padded tensor of token IDs from Dataset
+            padded_tokens = text_tokens.to(device)
+            
+        x = self.phoneme_embedding(padded_tokens) # [bsz, text_len, 512]
+        x = self.phoneme_pos_encoder(x)
+        x = self.arabic_text_encoder(x) # [bsz, text_len, 512]
+        
+        return x
+
     def get_class_embedding(self, labels):
         bsz = len(labels) if isinstance(labels, list) else labels.size(0)
 
-        # Encode labels using CLIP
-        clip_features = self.encode_labels_with_clip(labels)
+        if self.language == 'english':
+            features = self.encode_labels_with_clip(labels)
+        else:
+            features = self.get_phoneme_embedding(labels)
         
-        # Project CLIP features to encoder_embed_dim
-        class_embedding = self.class_emb(clip_features)
+        # Project features to encoder_embed_dim
+        class_embedding = self.class_emb(features)
 
         # random drop class embedding during training
         if self.training:
             drop_latent_mask = torch.rand(bsz) < self.label_drop_prob
-            drop_latent_mask = drop_latent_mask.unsqueeze(
-                -1).type_as(class_embedding).cuda()
+            
+            if class_embedding.dim() == 3:
+                drop_latent_mask = drop_latent_mask.unsqueeze(-1).unsqueeze(-1).type_as(class_embedding).to(self.fake_latent.device)
+            else:
+                drop_latent_mask = drop_latent_mask.unsqueeze(-1).type_as(class_embedding).to(self.fake_latent.device)
+                
             class_embedding = drop_latent_mask * self.fake_latent + \
                 (1 - drop_latent_mask) * class_embedding
         return class_embedding
@@ -439,10 +507,18 @@ class JEPAT(nn.Module):
         # mae decoder
         z = self.forward_decoder(x, mask, class_embedding)
         # Cross attn
-        class_embedding = class_embedding.unsqueeze(1).expand(-1, z.size(1), -1)
-        z_attended, _ = self.cross_attention(query=z, key=class_embedding, value=class_embedding)
+        if class_embedding.dim() == 2:
+            # English CLIP (Single Vector)
+            class_embedding_ca = class_embedding.unsqueeze(1) 
+            class_embedding_concat = class_embedding.unsqueeze(1).expand(-1, z.size(1), -1) 
+        else:
+            # Arabic Phonemes (Full Sequence)
+            class_embedding_ca = class_embedding 
+            class_embedding_concat = class_embedding.mean(dim=1, keepdim=True).expand(-1, z.size(1), -1)
+
+        z_attended, _ = self.cross_attention(query=z, key=class_embedding_ca, value=class_embedding_ca)
         z = z + z_attended 
-        z = torch.cat([z, class_embedding], dim=-1)
+        z = torch.cat([z, class_embedding_concat], dim=-1)
         z = self.fuse_proj(z) 
 
         # diffloss
@@ -463,8 +539,8 @@ class JEPAT(nn.Module):
     def sample_tokens(self, bsz, num_iter=64, cfg_scale=1.0, cfg_schedule="linear", labels=None, temperature=1.0, time_shifting_factor=1.0, progress=False):
 
         # init and sample generation orders
-        mask = torch.ones(bsz, self.seq_len).cuda()
-        tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim).cuda()
+        mask = torch.ones(bsz, self.seq_len, device=self.fake_latent.device)
+        tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim, device=self.fake_latent.device)
         orders = self.sample_orders(bsz)
 
         indices = list(range(num_iter))
@@ -476,15 +552,22 @@ class JEPAT(nn.Module):
 
             # class embedding and cfg_scale
             if labels is not None:
-                # Use CLIP to encode labels
-                clip_features = self.encode_labels_with_clip(labels)
-                class_embedding = self.class_emb(clip_features)
+                if self.language == 'english':
+                    features = self.encode_labels_with_clip(labels)
+                else:
+                    features = self.get_phoneme_embedding(labels)
+                class_embedding = self.class_emb(features)
             else:
                 class_embedding = self.fake_latent.repeat(bsz, 1)
             if not cfg_scale == 1.0:
                 tokens = torch.cat([tokens, tokens], dim=0)
+                if class_embedding.dim() == 3:
+                    seq_len_text = class_embedding.size(1)
+                    fake_class = self.fake_latent.unsqueeze(1).repeat(bsz, seq_len_text, 1)
+                else:
+                    fake_class = self.fake_latent.repeat(bsz, 1)
                 class_embedding = torch.cat(
-                    [class_embedding, self.fake_latent.repeat(bsz, 1)], dim=0)
+                    [class_embedding, fake_class], dim=0)
                 mask = torch.cat([mask, mask], dim=0)
 
             # mae encoder
@@ -496,10 +579,10 @@ class JEPAT(nn.Module):
             # mask ratio for the next round, following MaskGIT and MAGE.
             mask_ratio = np.cos(math.pi / 2. * (step + 1) / num_iter)
             mask_len = torch.Tensor(
-                [np.floor(self.seq_len * mask_ratio)]).cuda()
+                [np.floor(self.seq_len * mask_ratio)]).to(self.fake_latent.device)
 
             # masks out at least one for the next iteration
-            mask_len = torch.maximum(torch.Tensor([1]).cuda(),
+            mask_len = torch.maximum(torch.Tensor([1]).to(self.fake_latent.device),
                                      torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len))  # type: ignore
 
             # get masking for next iteration and locations to be predicted in this iteration
