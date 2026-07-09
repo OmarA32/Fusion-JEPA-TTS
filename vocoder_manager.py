@@ -11,9 +11,9 @@ from hifigan.env import AttrDict
 from hifigan.models import Generator as HiFiGANGenerator
 
 class VocoderManager:
-    def __init__(self, vocoder_type='hifigan', device='cpu'):
+    def __init__(self, vocoder_type="vocos", device=None):
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.vocoder_type = vocoder_type.lower()
-        self.device = device
         self.model = None
         self._load_model()
 
