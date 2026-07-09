@@ -37,7 +37,7 @@ def main():
     model = JEPAT_base(
         in_channels=1, 
         language='arabic',
-        spec_height=80, 
+        spec_height=100, 
         spec_width=512,
         diffloss='flow', 
         jepaloss='jepa'
@@ -55,10 +55,24 @@ def main():
     
     os.makedirs("training_logs", exist_ok=True)
     
+    start_epoch = 0
+    import glob
+    import re
+    ckpt_files = glob.glob(os.path.join("training_logs", "jepa_epoch_*.pt"))
+    if ckpt_files:
+        latest_ckpt = max(ckpt_files, key=lambda f: int(re.search(r"jepa_epoch_(\d+)\.pt", f).group(1)))
+        print(f"Resuming training from {latest_ckpt}")
+        checkpoint = torch.load(latest_ckpt, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        print(f"Resumed successfully. Starting at epoch {start_epoch}")
+    
     print("Starting Raw PyTorch Training Loop!")
     ema_decay = 0.9999
     
-    for epoch in range(10000):
+    for epoch in range(start_epoch, 10000):
         for batch_idx, batch in enumerate(train_loader):
             start_time = time.time()
             
