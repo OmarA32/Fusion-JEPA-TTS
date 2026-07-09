@@ -10,6 +10,61 @@ import torch
 from torch.utils.data import DataLoader
 from data.dataset import JEPADataset, jepa_collate_fn
 from models.jepat import JEPAT_base
+import re
+
+def get_latest_checkpoint(log_dir):
+    """Finds the most recent checkpoint between raw .pt files and Lightning .ckpt files."""
+    latest_pt = None
+    max_pt_epoch = -1
+    
+    # 1. Search for raw .pt files
+    if os.path.exists(log_dir):
+        for f in os.listdir(log_dir):
+            if f.startswith("jepa_epoch_") and f.endswith(".pt"):
+                try:
+                    epoch = int(re.search(r"epoch_(\d+)", f).group(1))
+                    if epoch > max_pt_epoch:
+                        max_pt_epoch = epoch
+                        latest_pt = os.path.join(log_dir, f)
+                except:
+                    pass
+                    
+    latest_ckpt = None
+    max_ckpt_epoch = -1
+    
+    # 2. Search for Lightning .ckpt files
+    checkpoints_dir = os.path.join(log_dir, "lightning_logs")
+    if os.path.exists(checkpoints_dir):
+        versions = [d for d in os.listdir(checkpoints_dir) if d.startswith("version_")]
+        if versions:
+            versions.sort(key=lambda x: int(x.split("_")[1]), reverse=True)
+            for version in versions:
+                ckpt_dir = os.path.join(checkpoints_dir, version, "checkpoints")
+                if os.path.exists(ckpt_dir):
+                    ckpts = [f for f in os.listdir(ckpt_dir) if f.endswith(".ckpt")]
+                    for ckpt in ckpts:
+                        try:
+                            if "epoch=" in ckpt:
+                                epoch = int(re.search(r"epoch=(\d+)", ckpt).group(1))
+                                if epoch > max_ckpt_epoch:
+                                    max_ckpt_epoch = epoch
+                                    latest_ckpt = os.path.join(ckpt_dir, ckpt)
+                        except:
+                            pass
+                    
+                    if latest_ckpt:
+                        if "last.ckpt" in ckpts:
+                            latest_ckpt = os.path.join(ckpt_dir, "last.ckpt")
+                        break
+
+    # 3. Compare and return
+    if max_ckpt_epoch == -1 and max_pt_epoch == -1:
+        return None, None
+        
+    if max_ckpt_epoch >= max_pt_epoch:
+        return latest_ckpt, "ckpt"
+    else:
+        return latest_pt, "pt"
 
 def main():
     print("Initializing Device...")
@@ -56,18 +111,29 @@ def main():
     os.makedirs("training_logs", exist_ok=True)
     
     start_epoch = 0
-    import glob
-    import re
-    ckpt_files = glob.glob(os.path.join("training_logs", "jepa_epoch_*.pt"))
-    if ckpt_files:
-        latest_ckpt = max(ckpt_files, key=lambda f: int(re.search(r"jepa_epoch_(\d+)\.pt", f).group(1)))
-        print(f"Resuming training from {latest_ckpt}")
-        checkpoint = torch.load(latest_ckpt, map_location=device, weights_only=False)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
+    found_path, ckpt_type = get_latest_checkpoint("training_logs")
+    if found_path and os.path.exists(found_path):
+        print(f"Resuming training from {ckpt_type} checkpoint: {found_path}")
+        checkpoint = torch.load(found_path, map_location=device, weights_only=False)
+        
+        if ckpt_type == "pt":
+            # Raw PyTorch weights
+            model.load_state_dict(checkpoint['model_state_dict'])
+            ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1
+        elif ckpt_type == "ckpt":
+            # PyTorch Lightning weights (requires stripping the 'model.' and 'ema_model.' prefixes)
+            state_dict = checkpoint['state_dict']
+            model_state = {k.replace('model.', ''): v for k, v in state_dict.items() if k.startswith('model.')}
+            ema_state = {k.replace('ema_model.', ''): v for k, v in state_dict.items() if k.startswith('ema_model.')}
+            model.load_state_dict(model_state)
+            ema_model.load_state_dict(ema_state)
+            # Lightning's optimizer state is nested, so we skip restoring it for manual loops to prevent shape crashing
+            start_epoch = checkpoint['epoch'] + 1
         print(f"Resumed successfully. Starting at epoch {start_epoch}")
+    else:
+        print("No checkpoint found. Starting from scratch.")
     
     print("Starting Raw PyTorch Training Loop!")
     ema_decay = 0.9999
