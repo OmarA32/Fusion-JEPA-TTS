@@ -92,14 +92,22 @@ def main():
     print("Initializing Lightning JEPAT Model...")
     model = JEPATLightning(learning_rate=1e-4)
 
-    # Configure checkpointing to save the best 3 epochs based on validation loss to prevent disk space crash
-    checkpoint_callback = ModelCheckpoint(
+    # Configure checkpointing to save the best 3 epochs based on validation loss
+    checkpoint_callback_best = ModelCheckpoint(
         monitor="val/total_loss",
         mode="min",
         every_n_epochs=1,
         save_top_k=3, # Keep the 3 best epochs
-        save_last=True, # Guarantee the latest epoch is saved
-        filename="jepa-{epoch:03d}"
+        filename="best-epoch={epoch:03d}"
+    )
+
+    # Configure a second checkpoint to ALWAYS save the absolute latest epoch with its number
+    checkpoint_callback_last = ModelCheckpoint(
+        monitor="step", # Monitor the global step to always get the latest
+        mode="max",
+        every_n_epochs=1,
+        save_top_k=1, # Only keep 1 file to prevent disk crash
+        filename="last-epoch={epoch:03d}"
     )
 
     print("Configuring Lightning Trainer...")
@@ -109,7 +117,7 @@ def main():
         devices="auto",
         log_every_n_steps=50,
         gradient_clip_val=1.0,
-        callbacks=[checkpoint_callback, TQDMProgressBar(refresh_rate=300)],
+        callbacks=[checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=300)],
         default_root_dir="training_logs"
     )
 
