@@ -151,4 +151,3 @@ pretrained/
 training_logs/
 test_results/
 output_arabic_test.wav
-data/
