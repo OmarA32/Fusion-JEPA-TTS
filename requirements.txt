@@ -2,7 +2,6 @@ torch
 torchaudio
 lightning
 vocos
-bigvganinference
 datasets>=3.0.0
 soundfile
 scipy

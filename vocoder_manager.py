@@ -1,6 +1,5 @@
 import torch
 from vocos import Vocos
-from bigvganinference import BigVGANInference
 import json
 import sys
 import os
@@ -37,12 +36,8 @@ class VocoderManager:
             self.model.load_state_dict(state_dict)
             self.model.eval()
             self.model.remove_weight_norm()
-        elif self.vocoder_type == 'bigvgan':
-            # Dynamically pull BigVGAN from HuggingFace
-            self.model = BigVGANInference.from_pretrained('nvidia/bigvgan_v2_24khz_100band_256x', use_cuda_kernel=False)
-            self.model = self.model.to(self.device)
         else:
-            raise ValueError("Invalid vocoder_type. Choose 'vocos', 'hifigan', or 'bigvgan'.")
+            raise ValueError("Invalid vocoder_type. Choose 'vocos', or 'hifigan'.")
         print(f"{self.vocoder_type.upper()} loaded successfully.")
 
     @torch.no_grad()
@@ -57,9 +52,5 @@ class VocoderManager:
         elif self.vocoder_type == 'hifigan':
             audio = self.model(mel_spectrogram)
             audio = audio.squeeze(1) # Remove channel dim if present
-        elif self.vocoder_type == 'bigvgan':
-            audio = self.model(mel_spectrogram)
-            if audio.dim() == 3:
-                audio = audio.squeeze(1)
             
         return audio
