@@ -7,7 +7,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 import argparse
 import torch
 import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, TQDMProgressBar
 from torch.utils.data import DataLoader
 
 from data.dataset import JEPADataset, jepa_collate_fn
@@ -119,7 +119,7 @@ def main():
         devices="auto",
         log_every_n_steps=50,
         gradient_clip_val=1.0,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, TQDMProgressBar(refresh_rate=300)],
         default_root_dir="training_logs"
     )
 
