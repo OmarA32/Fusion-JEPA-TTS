@@ -54,6 +54,20 @@ class JEPATLightning(L.LightningModule):
         
         return total_loss
 
+    def validation_step(self, batch, batch_idx):
+        mel_specs, text_ids, _ = batch
+        
+        with torch.no_grad():
+            ema_x = self.ema_model.forward_ema_encoder(mel_specs, text_ids)
+            diffloss, jepa_loss = self.model(mel_specs, text_ids, ema_x=ema_x)
+            total_loss = diffloss + jepa_loss
+            
+        self.log("val/diffloss", diffloss, prog_bar=True, sync_dist=True)
+        self.log("val/jepa_loss", jepa_loss, prog_bar=True, sync_dist=True)
+        self.log("val/total_loss", total_loss, prog_bar=True, sync_dist=True)
+        
+        return total_loss
+
     def configure_optimizers(self):
         # Filter parameters that require gradients
         params = [p for p in self.model.parameters() if p.requires_grad]

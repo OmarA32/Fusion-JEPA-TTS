@@ -66,8 +66,8 @@ notebook = {
             "cell_type": "markdown",
             "metadata": {},
             "source": [
-                "### 4. Run Training\n",
-                "This runs the main training loop. The dataset (`MohamedRashad/common-voice-18-arabic`) is public and will download automatically during the first epoch. No HF login is required."
+                "### 4A. Run Training (From Scratch)\\n",
+                "This deletes any existing weights and trains from scratch at Epoch 0. The dataset (`MohamedRashad/common-voice-18-arabic`) is public and will download automatically during the first epoch."
             ]
         },
         {
@@ -77,6 +77,23 @@ notebook = {
             "outputs": [],
             "source": [
                 "!python train.py"
+            ]
+        },
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": [
+                "### 4B. Resume Training / Fine-Tune\\n",
+                "If you downloaded your saved weights from Hugging Face into the `training_logs` folder, run this cell instead! It will seamlessly resume training from the latest epoch."
+            ]
+        },
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": [
+                "!python train.py --resume"
             ]
         },
         {

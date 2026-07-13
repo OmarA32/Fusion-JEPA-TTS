@@ -88,15 +88,25 @@ def main():
         collate_fn=jepa_collate_fn,
         num_workers=workers 
     )
+    
+    # Initialize Validation
+    val_dataset = JEPADataset(split="validation", max_frames=512)
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=8,
+        shuffle=False,
+        collate_fn=jepa_collate_fn,
+        num_workers=workers
+    )
 
     print("Initializing Lightning JEPAT Model...")
     model = JEPATLightning(learning_rate=1e-4)
 
-    # Configure checkpointing to save every 100 epochs, but also always save the very last completed epoch
+    # Configure checkpointing to save every epoch, keeping only the latest 3 to prevent disk space crash
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=100,
-        save_top_k=-1, # Save all of them
-        save_last=True, # Guarantee the latest epoch (even Epoch 1) is saved
+        every_n_epochs=1,
+        save_top_k=3, # Keep the 3 most recent epochs
+        save_last=True, # Guarantee the latest epoch is saved
         filename="jepa-{epoch:03d}"
     )
 
@@ -129,7 +139,7 @@ def main():
             print("No checkpoint found to resume from. Starting from scratch.")
 
     print("Starting Training Loop!")
-    trainer.fit(model, train_loader, ckpt_path=ckpt_path)
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=ckpt_path)
     
     print("Training finished! Checkpoints saved to 'training_logs/'")
 
