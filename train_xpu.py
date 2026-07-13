@@ -53,12 +53,12 @@ def get_latest_checkpoint(log_dir):
                         pass
 
     if max_ckpt_epoch == -1 and max_pt_epoch == -1:
-        return None, None
+        return None, None, 0
         
     if max_ckpt_epoch >= max_pt_epoch:
-        return latest_ckpt, "ckpt"
+        return latest_ckpt, "ckpt", max_ckpt_epoch
     else:
-        return latest_pt, "pt"
+        return latest_pt, "pt", max_pt_epoch
 
 def main():
     parser = argparse.ArgumentParser()
@@ -124,15 +124,33 @@ def main():
 
     ckpt_path = None
     if args.resume:
-        found_path, ckpt_type = get_latest_checkpoint("training_logs")
+        found_path, ckpt_type, found_epoch = get_latest_checkpoint("training_logs")
         if found_path and os.path.exists(found_path):
             if ckpt_type == "pt":
-                print(f"Resuming from raw PyTorch XPU weights: {found_path}")
+                print(f"Upgrading raw PyTorch weights ({found_path}) to a Lightning Checkpoint...")
                 checkpoint = torch.load(found_path, map_location="cpu")
-                model.model.load_state_dict(checkpoint['model_state_dict'])
-                model.ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
-                # We do NOT pass ckpt_path to trainer.fit because Lightning cannot parse raw .pt state
-                ckpt_path = None
+                
+                # Synthesize a PyTorch Lightning Checkpoint
+                lightning_ckpt = {
+                    "epoch": found_epoch,
+                    "global_step": found_epoch * len(train_loader), # approximate global step
+                    "state_dict": {},
+                    "pytorch-lightning_version": L.__version__
+                }
+                
+                # Prefix model state
+                if 'model_state_dict' in checkpoint:
+                    for k, v in checkpoint['model_state_dict'].items():
+                        lightning_ckpt["state_dict"][f"model.{k}"] = v
+                if 'ema_model_state_dict' in checkpoint:
+                    for k, v in checkpoint['ema_model_state_dict'].items():
+                        lightning_ckpt["state_dict"][f"ema_model.{k}"] = v
+                        
+                temp_ckpt_path = os.path.join("training_logs", "temp_upgrade.ckpt")
+                torch.save(lightning_ckpt, temp_ckpt_path)
+                
+                ckpt_path = temp_ckpt_path
+                print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
             else:
                 print(f"Resuming natively from Lightning checkpoint: {found_path}")
                 ckpt_path = found_path

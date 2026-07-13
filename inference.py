@@ -69,14 +69,14 @@ def generate_audio(text, output_path="output_arabic_test.wav"):
                             pass
 
         if max_ckpt_epoch == -1 and max_pt_epoch == -1:
-            return None, None
+            return None, None, 0
             
         if max_ckpt_epoch >= max_pt_epoch:
-            return latest_ckpt, "ckpt"
+            return latest_ckpt, "ckpt", max_ckpt_epoch
         else:
-            return latest_pt, "pt"
+            return latest_pt, "pt", max_pt_epoch
 
-    found_path, ckpt_type = get_latest_checkpoint("training_logs")
+    found_path, ckpt_type, _ = get_latest_checkpoint("training_logs")
     if found_path and os.path.exists(found_path):
         print(f"Loading weights from {found_path} ({ckpt_type})...")
         if ckpt_type == "pt":

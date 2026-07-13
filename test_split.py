@@ -52,12 +52,12 @@ def get_latest_checkpoint(log_dir):
                         pass
 
     if max_ckpt_epoch == -1 and max_pt_epoch == -1:
-        return None, None
+        return None, None, 0
         
     if max_ckpt_epoch >= max_pt_epoch:
-        return latest_ckpt, "ckpt"
+        return latest_ckpt, "ckpt", max_ckpt_epoch
     else:
-        return latest_pt, "pt"
+        return latest_pt, "pt", max_pt_epoch
 
 def generate_and_save(model, vocoder, text_input, output_path):
     device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
@@ -95,7 +95,7 @@ def main():
     test_dataset = JEPADataset(split="test")
     
     print("Loading JEPA-T Model...")
-    found_path, ckpt_type = get_latest_checkpoint("training_logs")
+    found_path, ckpt_type, _ = get_latest_checkpoint("training_logs")
     
     if found_path and os.path.exists(found_path):
         if ckpt_type == "pt":
