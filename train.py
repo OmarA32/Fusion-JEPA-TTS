@@ -116,7 +116,7 @@ def main():
     trainer = L.Trainer(
         max_epochs=10000, # Train indefinitely until stopped
         accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
-        devices=1,
+        devices="auto",
         log_every_n_steps=50,
         gradient_clip_val=1.0,
         callbacks=[checkpoint_callback],
