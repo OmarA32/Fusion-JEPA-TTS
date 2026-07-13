@@ -102,10 +102,12 @@ def main():
     print("Initializing Lightning JEPAT Model...")
     model = JEPATLightning(learning_rate=1e-4)
 
-    # Configure checkpointing to save every epoch, keeping only the latest 3 to prevent disk space crash
+    # Configure checkpointing to save the best 3 epochs based on validation loss to prevent disk space crash
     checkpoint_callback = ModelCheckpoint(
+        monitor="val/total_loss",
+        mode="min",
         every_n_epochs=1,
-        save_top_k=3, # Keep the 3 most recent epochs
+        save_top_k=3, # Keep the 3 best epochs
         save_last=True, # Guarantee the latest epoch is saved
         filename="jepa-{epoch:03d}"
     )
