@@ -15,47 +15,41 @@ from vocoder_manager import VocoderManager
 import re
 
 def get_latest_checkpoint(log_dir):
-    """Finds the most recent checkpoint between raw .pt files and Lightning .ckpt files."""
+    """Finds the most recent checkpoint recursively inside the log directory."""
     latest_pt = None
     max_pt_epoch = -1
-    
-    if os.path.exists(log_dir):
-        for f in os.listdir(log_dir):
-            if f.startswith("jepa_epoch_") and f.endswith(".pt"):
-                try:
-                    epoch = int(re.search(r"epoch_(\d+)", f).group(1))
-                    if epoch > max_pt_epoch:
-                        max_pt_epoch = epoch
-                        latest_pt = os.path.join(log_dir, f)
-                except:
-                    pass
-                    
     latest_ckpt = None
     max_ckpt_epoch = -1
     
-    checkpoints_dir = os.path.join(log_dir, "lightning_logs")
-    if os.path.exists(checkpoints_dir):
-        versions = [d for d in os.listdir(checkpoints_dir) if d.startswith("version_")]
-        if versions:
-            versions.sort(key=lambda x: int(x.split("_")[1]), reverse=True)
-            for version in versions:
-                ckpt_dir = os.path.join(checkpoints_dir, version, "checkpoints")
-                if os.path.exists(ckpt_dir):
-                    ckpts = [f for f in os.listdir(ckpt_dir) if f.endswith(".ckpt")]
-                    for ckpt in ckpts:
-                        try:
-                            if "epoch=" in ckpt:
-                                epoch = int(re.search(r"epoch=(\d+)", ckpt).group(1))
-                                if epoch > max_ckpt_epoch:
-                                    max_ckpt_epoch = epoch
-                                    latest_ckpt = os.path.join(ckpt_dir, ckpt)
-                        except:
-                            pass
-                    
-                    if latest_ckpt:
-                        if "last.ckpt" in ckpts:
-                            latest_ckpt = os.path.join(ckpt_dir, "last.ckpt")
-                        break
+    if os.path.exists(log_dir):
+        for root, dirs, files in os.walk(log_dir):
+            for f in files:
+                filepath = os.path.join(root, f)
+                
+                # Check for raw .pt files
+                if f.startswith("jepa_epoch_") and f.endswith(".pt"):
+                    try:
+                        epoch = int(re.search(r"epoch_(\d+)", f).group(1))
+                        if epoch > max_pt_epoch:
+                            max_pt_epoch = epoch
+                            latest_pt = filepath
+                    except:
+                        pass
+                
+                # Check for Lightning .ckpt files
+                elif f.endswith(".ckpt"):
+                    try:
+                        if "epoch=" in f:
+                            epoch = int(re.search(r"epoch=(\d+)", f).group(1))
+                            if epoch > max_ckpt_epoch:
+                                max_ckpt_epoch = epoch
+                                latest_ckpt = filepath
+                        elif f == "last.ckpt":
+                            # last.ckpt takes absolute highest priority
+                            max_ckpt_epoch = 99999999
+                            latest_ckpt = filepath
+                    except:
+                        pass
 
     if max_ckpt_epoch == -1 and max_pt_epoch == -1:
         return None, None
