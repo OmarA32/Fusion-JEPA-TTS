@@ -76,6 +76,9 @@ def generate_and_save(model, vocoder, text_input, output_path):
         )
     mel_for_vocoder = generated_mel.squeeze(1)
     
+    import torch.nn.functional as F
+    mel_for_vocoder = F.pad(mel_for_vocoder, (0, 0, 0, 4), mode='constant', value=-11.5129)
+    
     with torch.no_grad():
         audio_waveform = vocoder.generate_audio(mel_for_vocoder)
         

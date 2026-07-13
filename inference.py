@@ -7,27 +7,93 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 import torchaudio
 import argparse
-from models.jepat_lightning import JEPATLightning
+from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
 def generate_audio(text, output_path="output_arabic_test.wav"):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        device = "xpu"
+    elif torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
     print(f"Using device: {device}")
 
     print("Initializing JEPA-T Model...")
-    # For testing the pipeline, we just use an untrained model.
-    # In a real scenario, we would load from checkpoint:
-    # model = JEPATLightning.load_from_checkpoint("path/to/checkpoint.ckpt")
-    model = JEPATLightning()
-    model = model.to(device)
+    model = JEPAT_base(
+        in_channels=1, 
+        language='arabic',
+        spec_height=100, 
+        spec_width=512,
+        diffloss='flow', 
+        jepaloss='jepa'
+    ).to(device)
+    
+    import re
+    def get_latest_checkpoint(log_dir):
+        latest_pt = None
+        max_pt_epoch = -1
+        if os.path.exists(log_dir):
+            for f in os.listdir(log_dir):
+                if f.startswith("jepa_epoch_") and f.endswith(".pt"):
+                    try:
+                        epoch = int(re.search(r"epoch_(\d+)", f).group(1))
+                        if epoch > max_pt_epoch:
+                            max_pt_epoch = epoch
+                            latest_pt = os.path.join(log_dir, f)
+                    except: pass
+        latest_ckpt = None
+        max_ckpt_epoch = -1
+        checkpoints_dir = os.path.join(log_dir, "lightning_logs")
+        if os.path.exists(checkpoints_dir):
+            versions = [d for d in os.listdir(checkpoints_dir) if d.startswith("version_")]
+            if versions:
+                versions.sort(key=lambda x: int(x.split("_")[1]), reverse=True)
+                for version in versions:
+                    ckpt_dir = os.path.join(checkpoints_dir, version, "checkpoints")
+                    if os.path.exists(ckpt_dir):
+                        ckpts = [f for f in os.listdir(ckpt_dir) if f.endswith(".ckpt")]
+                        for ckpt in ckpts:
+                            try:
+                                if "epoch=" in ckpt:
+                                    epoch = int(re.search(r"epoch=(\d+)", ckpt).group(1))
+                                    if epoch > max_ckpt_epoch:
+                                        max_ckpt_epoch = epoch
+                                        latest_ckpt = os.path.join(ckpt_dir, ckpt)
+                            except: pass
+                        if latest_ckpt:
+                            if "last.ckpt" in ckpts:
+                                latest_ckpt = os.path.join(ckpt_dir, "last.ckpt")
+                            break
+        if max_ckpt_epoch >= max_pt_epoch and latest_ckpt:
+            return latest_ckpt, "ckpt"
+        return latest_pt, "pt"
+
+    found_path, ckpt_type = get_latest_checkpoint("training_logs")
+    if found_path and os.path.exists(found_path):
+        print(f"Loading weights from {found_path} ({ckpt_type})...")
+        if ckpt_type == "pt":
+            ckpt = torch.load(found_path, map_location=device, weights_only=False)
+            model.load_state_dict(ckpt['model_state_dict'])
+        else:
+            # We must load Lightning checkpoints robustly by stripping 'model.' prefix
+            ckpt = torch.load(found_path, map_location=device, weights_only=False)
+            state_dict = ckpt['state_dict']
+            model_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith("model."):
+                    model_dict[k.replace("model.", "", 1)] = v
+            model.load_state_dict(model_dict)
+    else:
+        print(f"WARNING: No checkpoint found! Generating with untrained weights.")
+        
     model.eval()
 
-    print("Initializing HiFi-GAN Vocoder...")
-    vocoder = VocoderManager(vocoder_type='hifigan', device=device)
+    print("Initializing Vocos Vocoder (100-mel 24kHz)...")
+    vocoder = VocoderManager(vocoder_type='vocos', device=device)
 
     print("Processing Text...")
-    # Convert Arabic text to phoneme token IDs
     try:
         phonemes = arabic_to_tokens(text)
         tokens = tokens_to_ids(phonemes)
@@ -36,25 +102,27 @@ def generate_audio(text, output_path="output_arabic_test.wav"):
         print(f"Error processing text: {e}")
         return
 
-    # JEPAT expects a list of token lists for text batching
     text_input = [text] 
 
     print("Running Diffusion Generation (This may take a minute on CPU)...")
     with torch.no_grad():
-        # Generate the Mel Spectrogram
-        generated_mel = model.model.sample_tokens(
+        generated_mel = model.sample_tokens(
             bsz=1,
-            num_iter=64, # Default denoising steps
+            num_iter=64, 
             cfg_scale=3.0,
             labels=text_input
         )
     
     print(f"Raw Generated Mel Shape: {generated_mel.shape}")
     
-    # Unpatchify and adjust shape for Vocoder
-    # Current shape: [1, 1, 80, 512] -> needs to be [1, 80, 512]
     mel_for_vocoder = generated_mel.squeeze(1)
-    print(f"Vocoder Input Mel Shape: {mel_for_vocoder.shape}")
+    print(f"Vocoder Input Mel Shape before padding: {mel_for_vocoder.shape}")
+    
+    import torch.nn.functional as F
+    # The diffusion model operates in 16x16 patches, meaning it truncates 100 to 96.
+    # We must restore the top 4 high-frequency bins (with silence) so Vocos can process it.
+    mel_for_vocoder = F.pad(mel_for_vocoder, (0, 0, 0, 4), mode='constant', value=-11.5129)
+    print(f"Vocoder Input Mel Shape after padding: {mel_for_vocoder.shape}")
 
     print("Running Vocoder Synthesis...")
     with torch.no_grad():
@@ -66,11 +134,9 @@ def generate_audio(text, output_path="output_arabic_test.wav"):
     import scipy.io.wavfile as wavfile
     import numpy as np
     
-    # HiFi-GAN generates at 24000Hz
     sample_rate = 24000
     audio_np = audio_waveform.squeeze().cpu().numpy()
     
-    # Normalize and convert to int16 to prevent audio clipping
     audio_np = audio_np / max(abs(audio_np).max(), 1e-8)
     audio_int16 = (audio_np * 32767).astype(np.int16)
     
