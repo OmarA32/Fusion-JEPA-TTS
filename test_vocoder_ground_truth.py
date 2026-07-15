@@ -8,14 +8,14 @@ from vocoder_manager import VocoderManager
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos"])
+    parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos", "bigvgan"], help="Vocoder to use.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"])
-    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"])
-    parser.add_argument("--index", type=int, default=10, help="The dataset index to pull the audio sample from.")
+    parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
+    parser.add_argument("--index", type=int, default=10, help="Index of the test dataset item to synthesize.")
     args = parser.parse_args()
     
     valid_dbs = {
-        "arabic": ["common_voice", "nawar_halabi"],
+        "arabic": ["common_voice", "nawar_halabi", "clartts"],
         "english": ["libritts", "ljspeech"]
     }
     if args.db not in valid_dbs[args.lang]:
@@ -59,7 +59,8 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, f"ground_truth_index_{args.index}_{args.vocoder}.wav")
     
-    wavfile.write(out_path, 24000, audio_int16)
+    sample_rate = 44100 if args.vocoder == 'bigvgan' else 24000
+    wavfile.write(out_path, sample_rate, audio_int16)
     print(f"Saved: {out_path}")
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ def download_and_extract_nawar_halabi(data_dir):
     return target_dir
 
 class JEPADataset(Dataset):
-    def __init__(self, split="train", lang="arabic", db="common_voice", jepa_sr=24000, max_frames=512, n_mels=100):
+    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=128):
         super().__init__()
         self.lang = lang.lower()
         self.db = db.lower()
@@ -46,15 +46,22 @@ class JEPADataset(Dataset):
         self.max_frames = max_frames
         
         # Audio extraction function
-        self.jepa_mel_fn = torchaudio.transforms.MelSpectrogram(
-            sample_rate=jepa_sr,
-            n_mels=n_mels,
-            n_fft=1024,
-            hop_length=256,
-            win_length=1024,
-            f_min=0,
-            f_max=12000
-        )
+        bigvgan_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "BigVGAN")
+        if bigvgan_path not in sys.path:
+            sys.path.append(bigvgan_path)
+        from meldataset import mel_spectrogram
+        self.jepa_mel_fn = mel_spectrogram
+        
+        self.mel_kwargs = {
+            "n_fft": 2048,
+            "num_mels": n_mels,
+            "sampling_rate": jepa_sr,
+            "hop_size": 512,
+            "win_size": 2048,
+            "fmin": 0,
+            "fmax": None,
+            "center": False
+        }
         
         self.data_dir = os.path.join(PROJECT_ROOT, "data")
         self.dataset = []
@@ -71,6 +78,12 @@ class JEPADataset(Dataset):
                 ds = ds.cast_column("audio", Audio(decode=False))
                 self.dataset = ds.filter(lambda x: x['gender'] == 'male_masculine')
                 print(f"Loaded {len(self.dataset)} male clips from Common Voice.")
+                
+            elif self.db == "clartts":
+                ds = load_dataset("MBZUAI/ClArTTS", split="train")
+                ds = ds.cast_column("audio", Audio(decode=False))
+                self.dataset = ds
+                print(f"Loaded {len(self.dataset)} clips from ClArTTS.")
                 
             elif self.db == "nawar_halabi":
                 target_dir = download_and_extract_nawar_halabi(self.data_dir)
@@ -99,13 +112,24 @@ class JEPADataset(Dataset):
                 
         elif self.lang == "english":
             if self.db == "ljspeech":
-                ds = torchaudio.datasets.LJSPEECH(self.data_dir, download=True)
-                for item in ds:
-                    self.dataset.append({
-                        "audio_tensor": item[0],
-                        "sample_rate": item[1],
-                        "sentence": item[2]
-                    })
+                ljs_path = os.path.join(self.data_dir, "LJSpeech-1.1")
+                if not os.path.exists(ljs_path):
+                    print("LJSpeech not found, attempting to trigger torchaudio download...")
+                    try:
+                        torchaudio.datasets.LJSPEECH(self.data_dir, download=True)
+                    except Exception:
+                        pass # Windows throws UnicodeDecodeError after download completes
+                        
+                csv_path = os.path.join(ljs_path, "metadata.csv")
+                wavs_dir = os.path.join(ljs_path, "wavs")
+                with open(csv_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        parts = line.strip().split("|")
+                        if len(parts) >= 2:
+                            self.dataset.append({
+                                "audio_path": os.path.join(wavs_dir, parts[0] + ".wav"),
+                                "sentence": parts[2] if len(parts) > 2 and parts[2] else parts[1]
+                            })
                 print(f"Loaded {len(self.dataset)} clips from LJSpeech.")
             elif self.db == "libritts":
                 ds = torchaudio.datasets.LIBRITTS(self.data_dir, url="train-clean-100", download=True)
@@ -128,7 +152,7 @@ class JEPADataset(Dataset):
         item = self.dataset[idx]
         
         # --- Audio Processing ---
-        if self.lang == "arabic" and self.db == "common_voice":
+        if self.lang == "arabic" and self.db in ["common_voice", "clartts"]:
             import io
             import soundfile as sf
             audio_bytes = item['audio']['bytes']
@@ -140,22 +164,26 @@ class JEPADataset(Dataset):
             wav = torch.tensor(wav_np, dtype=torch.float32)
             if len(wav.shape) > 1:
                 wav = wav[:, 0] # convert to mono if stereo
-        else:
-            # English datasets via torchaudio return tensors
-            wav = item['audio_tensor'].squeeze(0)
-            sr = item['sample_rate']
+        elif self.lang == "english":
+            import soundfile as sf
+            if "audio_path" in item:
+                wav_np, sr = sf.read(item['audio_path'])
+                wav = torch.tensor(wav_np, dtype=torch.float32)
+            else:
+                wav = item['audio_tensor'].squeeze(0)
+                sr = item['sample_rate']
             
         if sr != self.jepa_sr:
             wav = torchaudio.functional.resample(wav, sr, self.jepa_sr)
             
-        target_len = (self.max_frames - 1) * self.jepa_mel_fn.hop_length
+        target_len = self.max_frames * self.mel_kwargs["hop_size"]
         if len(wav) > target_len:
             wav = wav[:target_len]
         else:
             wav = F.pad(wav, (0, target_len - len(wav)))
             
-        jepa_mel = self.jepa_mel_fn(wav).unsqueeze(0) # [1, 128, T]
-        jepa_mel = torch.log(torch.clamp(jepa_mel, min=1e-5)) # log mel
+        # BigVGAN's mel_spectrogram expects [B, T] and outputs natively log-compressed magnitudes
+        jepa_mel = self.jepa_mel_fn(wav.unsqueeze(0), **self.mel_kwargs) # [1, 128, T]
         
         # --- Text Processing ---
         if self.lang == "arabic":
@@ -163,14 +191,17 @@ class JEPADataset(Dataset):
                 from text import buckwalter_to_phonemes
                 phonemes = buckwalter_to_phonemes(item['sentence'])
             else:
-                phonemes = arabic_to_phonemes(item['sentence'])
+                sentence_text = item.get('sentence', item.get('text', ''))
+                phonemes = arabic_to_phonemes(sentence_text)
             tokens = phonemes_to_tokens(phonemes)
             tokens = [t for t in tokens if t in phon_to_id_]
             text_ids = torch.LongTensor(tokens_to_ids(tokens))
         else:
-            # English (Placeholder logic as requested by user)
-            # Just return a dummy tensor so training logic doesn't crash
-            text_ids = torch.LongTensor([0, 1, 2])
+            from text import english_to_tokens
+            sentence_text = item.get('sentence', item.get('text', ''))
+            tokens = english_to_tokens(sentence_text)
+            tokens = [t for t in tokens if t in phon_to_id_]
+            text_ids = torch.LongTensor(tokens_to_ids(tokens))
             
         return {
             "text_ids": text_ids,

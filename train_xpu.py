@@ -82,11 +82,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
-    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
+    parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database to use.")
     args = parser.parse_args()
     
     valid_dbs = {
-        "arabic": ["common_voice", "nawar_halabi"],
+        "arabic": ["common_voice", "nawar_halabi", "clartts"],
         "english": ["libritts", "ljspeech"]
     }
     if args.db not in valid_dbs[args.lang]:
@@ -132,7 +132,7 @@ def main():
     model = JEPAT_base(
         in_channels=1, 
         language=args.lang,
-        spec_height=100, 
+        spec_height=128, 
         spec_width=512,
         diffloss='flow', 
         jepaloss='jepa'

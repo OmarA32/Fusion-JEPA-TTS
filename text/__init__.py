@@ -4,6 +4,10 @@ from text.phonetise_buckwalter import (
     buckwalter_to_arabic,
     process_utterance
 )
+from text.english_phonetiser import (
+    english_to_phonemes,
+    english_to_tokens
+)
 
 vowels = ['aa', 'AA', 'uu0', 'uu1', 'UU0', 'UU1', 'ii0', 'ii1',
           'II0', 'II1', 'a', 'A', 'u0', 'u1', 'U0', 'U1', 'i0', 'i1',

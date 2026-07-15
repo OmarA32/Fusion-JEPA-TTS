@@ -18,7 +18,7 @@ class VocoderManager:
             if 'BigVGAN' not in sys.path:
                 sys.path.append('BigVGAN')
             from bigvgan import BigVGAN
-            self.model = BigVGAN.from_pretrained('nvidia/bigvgan_v2_24khz_100band_256x', use_cuda_kernel=False).to(self.device)
+            self.model = BigVGAN.from_pretrained('nvidia/bigvgan_v2_44khz_128band_512x', use_cuda_kernel=False).to(self.device)
             self.model.eval()
         else:
             raise ValueError("Invalid vocoder_type. Only 'vocos' and 'bigvgan' are supported.")
@@ -34,9 +34,6 @@ class VocoderManager:
         if self.vocoder_type == 'vocos':
             audio = self.model.decode(mel_spectrogram)
         elif self.vocoder_type == 'bigvgan':
-            # Acoustic model outputs log(power) mel. BigVGAN expects log(magnitude) mel.
-            # log(power) = 2 * log(magnitude), so we simply divide by 2!
-            mel_spectrogram_log_magnitude = mel_spectrogram / 2.0
-            audio = self.model(mel_spectrogram_log_magnitude)
+            audio = self.model(mel_spectrogram)
             
         return audio

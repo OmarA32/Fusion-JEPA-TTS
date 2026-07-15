@@ -103,18 +103,12 @@ class JEPAT(nn.Module):
         # --------------------------------------------------------------------------
         # Language Module Setup
         self.num_classes = class_num
-        if self.language == 'english':
-            # Load CLIP model
-            self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device='cpu')
-            self.clip_model.eval()
-            for param in self.clip_model.parameters():
-                param.requires_grad = False
-        else:
-            # Arabic FastPitch Text Processor
-            self.phoneme_embedding = nn.Embedding(len(symbols), 512)
-            self.phoneme_pos_encoder = PositionalEncoding(d_model=512, dropout=0.1)
-            encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8, batch_first=True, dropout=0.1)
-            self.arabic_text_encoder = nn.TransformerEncoder(encoder_layer, num_layers=2)
+
+        # Unified TTS Text Processor (used for both Arabic and English)
+        self.phoneme_embedding = nn.Embedding(len(symbols), 512)
+        self.phoneme_pos_encoder = PositionalEncoding(d_model=512, dropout=0.1)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8, batch_first=True, dropout=0.1)
+        self.arabic_text_encoder = nn.TransformerEncoder(encoder_layer, num_layers=2)
         
         # CLIP output is 512, project to encoder_embed_dim
         self.class_emb = nn.Sequential(
@@ -459,10 +453,8 @@ class JEPAT(nn.Module):
     def get_class_embedding(self, labels):
         bsz = len(labels) if isinstance(labels, list) else labels.size(0)
 
-        if self.language == 'english':
-            features = self.encode_labels_with_clip(labels)
-        else:
-            features = self.get_phoneme_embedding(labels)
+        # In JEPA-TTS, both Arabic and English text use the phonetic embedding layer, not CLIP
+        features = self.get_phoneme_embedding(labels)
         
         # Project features to encoder_embed_dim
         class_embedding = self.class_emb(features)

@@ -12,10 +12,10 @@ from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
 def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos"):
-    if hasattr(torch, "xpu") and torch.xpu.is_available():
-        device = "xpu"
-    elif torch.cuda.is_available():
+    if torch.cuda.is_available():
         device = "cuda"
+    elif hasattr(torch, "xpu") and torch.xpu.is_available():
+        device = "xpu"
     else:
         device = "cpu"
     print(f"Using device: {device}")
@@ -24,7 +24,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     model = JEPAT_base(
         in_channels=1, 
         language=lang,
-        spec_height=100, 
+        spec_height=128, 
         spec_width=512,
         diffloss='flow', 
         jepaloss='jepa'
@@ -102,8 +102,18 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
 
     print("Processing Text...")
     try:
-        phonemes = arabic_to_tokens(text)
-        tokens = tokens_to_ids(phonemes)
+        if lang == "arabic":
+            from text import arabic_to_tokens
+            tokens = arabic_to_tokens(text)
+        elif lang == "english":
+            from text import english_to_tokens
+            tokens = english_to_tokens(text)
+        else:
+            raise ValueError(f"Language {lang} not supported.")
+            
+        from text import tokens_to_ids, phon_to_id_
+        tokens = [t for t in tokens if t in phon_to_id_]
+        tokens = tokens_to_ids(tokens)
         print(f"Token IDs: {tokens}")
     except Exception as e:
         print(f"Error processing text: {e}")
@@ -123,13 +133,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     print(f"Raw Generated Mel Shape: {generated_mel.shape}")
     
     mel_for_vocoder = generated_mel.squeeze(1)
-    print(f"Vocoder Input Mel Shape before padding: {mel_for_vocoder.shape}")
-    
-    import torch.nn.functional as F
-    # The diffusion model operates in 16x16 patches, meaning it truncates 100 to 96.
-    # We must restore the top 4 high-frequency bins (with silence) so Vocos can process it.
-    mel_for_vocoder = F.pad(mel_for_vocoder, (0, 0, 0, 4), mode='constant', value=-11.5129)
-    print(f"Vocoder Input Mel Shape after padding: {mel_for_vocoder.shape}")
+    print(f"Vocoder Input Mel Shape: {mel_for_vocoder.shape}")
 
     print("Running Vocoder Synthesis...")
     with torch.no_grad():
@@ -141,7 +145,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     import scipy.io.wavfile as wavfile
     import numpy as np
     
-    sample_rate = 24000
+    sample_rate = 44100 if args.vocoder == 'bigvgan' else 24000
     audio_np = audio_waveform.squeeze().cpu().numpy()
     
     audio_np = audio_np / max(abs(audio_np).max(), 1e-8)
@@ -155,13 +159,13 @@ if __name__ == "__main__":
     parser.add_argument("--text", type=str, default="مَرْحَبَاً بِكُمْ فِي هَذَا الِاخْتِبَار", help="Text to synthesize")
     parser.add_argument("--output", type=str, default="output_test.wav", help="Output WAV file path")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language of the model.")
-    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database the model was trained on.")
+    parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
     parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
-    parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos", "bigvgan"], help="Vocoder to use.")
+    parser.add_argument('--vocoder', type=str, default='bigvgan', choices=['vocos', 'bigvgan'], help="Vocoder to use.")
     args = parser.parse_args()
 
     valid_dbs = {
-        "arabic": ["common_voice", "nawar_halabi"],
+        "arabic": ["common_voice", "nawar_halabi", "clartts"],
         "english": ["libritts", "ljspeech"]
     }
     if args.db not in valid_dbs[args.lang]:
