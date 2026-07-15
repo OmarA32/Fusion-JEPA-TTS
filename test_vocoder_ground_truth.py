@@ -8,13 +8,26 @@ from vocoder_manager import VocoderManager
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vocoder", type=str, required=True, choices=["hifigan", "vocos", "bigvgan"])
+    parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos"])
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"])
+    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"])
     args = parser.parse_args()
+    
+    valid_dbs = {
+        "arabic": ["common_voice", "nawar_halabi"],
+        "english": ["libritts", "ljspeech"]
+    }
+    if args.db not in valid_dbs[args.lang]:
+        print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
+        print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
+        import sys
+        sys.exit(1)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    print(f"Loading test dataset using native synchronized defaults...")
-    test_dataset = JEPADataset(split="test")
+    print(f"Loading {args.lang.upper()} {args.db.upper()} test dataset...")
+    test_dataset = JEPADataset(split="test", lang=args.lang, db=args.db)
+    # Grab the 10th item for testing
     item = test_dataset[10]
     
     mel_tgt = item['mel_tgt']

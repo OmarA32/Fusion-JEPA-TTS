@@ -11,7 +11,7 @@ from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
-def generate_audio(text, output_path="output_arabic_test.wav"):
+def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav"):
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         device = "xpu"
     elif torch.cuda.is_available():
@@ -23,7 +23,7 @@ def generate_audio(text, output_path="output_arabic_test.wav"):
     print("Initializing JEPA-T Model...")
     model = JEPAT_base(
         in_channels=1, 
-        language='arabic',
+        language=lang,
         spec_height=100, 
         spec_width=512,
         diffloss='flow', 
@@ -76,7 +76,8 @@ def generate_audio(text, output_path="output_arabic_test.wav"):
         else:
             return latest_pt, "pt", max_pt_epoch
 
-    found_path, ckpt_type, _ = get_latest_checkpoint("training_logs")
+    log_dir = os.path.join("training_logs", lang, db)
+    found_path, ckpt_type, _ = get_latest_checkpoint(log_dir)
     if found_path and os.path.exists(found_path):
         print(f"Loading weights from {found_path} ({ckpt_type})...")
         if ckpt_type == "pt":
@@ -151,8 +152,19 @@ def generate_audio(text, output_path="output_arabic_test.wav"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="JEPA-T TTS Inference")
-    parser.add_argument("--text", type=str, default="مَرْحَبَاً بِكُمْ فِي هَذَا الِاخْتِبَار", help="Arabic text to synthesize")
-    parser.add_argument("--output", type=str, default="output_arabic_test.wav", help="Output WAV file path")
+    parser.add_argument("--text", type=str, default="مَرْحَبَاً بِكُمْ فِي هَذَا الِاخْتِبَار", help="Text to synthesize")
+    parser.add_argument("--output", type=str, default="output_test.wav", help="Output WAV file path")
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language of the model.")
+    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database the model was trained on.")
     args = parser.parse_args()
 
-    generate_audio(args.text, args.output)
+    valid_dbs = {
+        "arabic": ["common_voice", "nawar_halabi"],
+        "english": ["libritts", "ljspeech"]
+    }
+    if args.db not in valid_dbs[args.lang]:
+        print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
+        print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
+        sys.exit(1)
+    
+    generate_audio(args.text, args.lang, args.db, args.output)

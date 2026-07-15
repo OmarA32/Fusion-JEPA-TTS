@@ -63,11 +63,25 @@ def get_latest_checkpoint(log_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
+    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
     args = parser.parse_args()
+    
+    valid_dbs = {
+        "arabic": ["common_voice", "nawar_halabi"],
+        "english": ["libritts", "ljspeech"]
+    }
+    if args.db not in valid_dbs[args.lang]:
+        print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
+        print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
+        sys.exit(1)
+        
+    log_dir = os.path.join("training_logs", args.lang, args.db)
+    os.makedirs(log_dir, exist_ok=True)
 
-    print("Initializing DataModule...")
+    print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")
     # Train on the full dataset split
-    train_dataset = JEPADataset(split="train", max_frames=512)
+    train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
     # Dynamically optimize data loading for Linux while keeping Windows safe
     workers = 4 if os.name != 'nt' else 0
 
@@ -80,7 +94,7 @@ def main():
     )
     
     # Initialize Validation
-    val_dataset = JEPADataset(split="validation", max_frames=512)
+    val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
     val_loader = DataLoader(
         val_dataset,
         batch_size=8,
@@ -90,7 +104,7 @@ def main():
     )
 
     print("Initializing Lightning JEPAT Model...")
-    model = JEPATLightning(learning_rate=1e-4)
+    model = JEPATLightning(learning_rate=1e-4, language=args.lang)
 
     # Configure checkpointing to save the best 3 epochs based on validation loss
     checkpoint_callback_best = ModelCheckpoint(
@@ -118,12 +132,12 @@ def main():
         log_every_n_steps=50,
         gradient_clip_val=1.0,
         callbacks=[checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=300)],
-        default_root_dir="training_logs"
+        default_root_dir=log_dir
     )
 
     ckpt_path = None
     if args.resume:
-        found_path, ckpt_type, found_epoch = get_latest_checkpoint("training_logs")
+        found_path, ckpt_type, found_epoch = get_latest_checkpoint(log_dir)
         if found_path and os.path.exists(found_path):
             if ckpt_type == "pt":
                 print(f"Upgrading raw PyTorch weights ({found_path}) to a Lightning Checkpoint...")
@@ -145,7 +159,7 @@ def main():
                     for k, v in checkpoint['ema_model_state_dict'].items():
                         lightning_ckpt["state_dict"][f"ema_model.{k}"] = v
                         
-                temp_ckpt_path = os.path.join("training_logs", "temp_upgrade.ckpt")
+                temp_ckpt_path = os.path.join(log_dir, "temp_upgrade.ckpt")
                 torch.save(lightning_ckpt, temp_ckpt_path)
                 
                 ckpt_path = temp_ckpt_path
@@ -159,7 +173,7 @@ def main():
     print("Starting Training Loop!")
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=ckpt_path)
     
-    print("Training finished! Checkpoints saved to 'training_logs/'")
+    print("Training finished! Checkpoints saved to: ", log_dir)
 
 if __name__ == "__main__":
     main()

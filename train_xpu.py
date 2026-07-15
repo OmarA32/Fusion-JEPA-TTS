@@ -3,6 +3,7 @@ import sys
 import copy
 import time
 import re
+import argparse
 import lightning as L
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -78,10 +79,24 @@ def clean_old_checkpoints(log_dir, max_keep=3):
             os.remove(f)
 
 def main():
-    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
+    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
     args = parser.parse_args()
+    
+    valid_dbs = {
+        "arabic": ["common_voice", "nawar_halabi"],
+        "english": ["libritts", "ljspeech"]
+    }
+    if args.db not in valid_dbs[args.lang]:
+        print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
+        print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
+        sys.exit(1)
+        
+    # Isolate training logs by language and database to prevent checkpoint clashing
+    log_dir = os.path.join("training_logs", args.lang, args.db)
+    os.makedirs(log_dir, exist_ok=True)
 
     print("Initializing Device...")
     if hasattr(torch, "xpu") and torch.xpu.is_available():
@@ -92,9 +107,9 @@ def main():
         device = torch.device("cpu")
     print(f"Using natively accelerated PyTorch device: {device}")
 
-    print("Initializing DataModule...")
-    train_dataset = JEPADataset(split="train", max_frames=512)
-    val_dataset = JEPADataset(split="validation", max_frames=512)
+    print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")
+    train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
+    val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
     workers = 4 if os.name != 'nt' else 0
 
     train_loader = DataLoader(
@@ -116,7 +131,7 @@ def main():
     print("Initializing JEPAT Model...")
     model = JEPAT_base(
         in_channels=1, 
-        language='arabic',
+        language=args.lang,
         spec_height=100, 
         spec_width=512,
         diffloss='flow', 
@@ -133,11 +148,9 @@ def main():
     # Setup mixed precision for XPU/CUDA
     scaler = torch.amp.GradScaler(device=device.type) if device.type in ["cuda", "xpu"] else None
     
-    os.makedirs("training_logs", exist_ok=True)
-    
     start_epoch = 0
     if args.resume:
-        found_path, ckpt_type, found_epoch = get_latest_checkpoint("training_logs")
+        found_path, ckpt_type, found_epoch = get_latest_checkpoint(log_dir)
         if found_path and os.path.exists(found_path):
             print(f"Resuming training from {ckpt_type} checkpoint: {found_path}")
             checkpoint = torch.load(found_path, map_location=device, weights_only=False)
@@ -208,7 +221,7 @@ def main():
             # Logging
             if batch_idx % 10 == 0:
                 elapsed = time.time() - start_time
-                print(f"Epoch {epoch} | Batch {batch_idx}/{len(train_loader)} | Total Loss: {total_loss.item():.4f} | Diff: {diffloss.item():.4f} | JEPA: {jepa_loss.item():.4f} | Time/batch: {elapsed:.2f}s")
+                print(f"Epoch {epoch} | Batch {batch_idx}/{len(train_loader)} | Total Loss: {total_loss.item():.4f} | Diff: {diffloss.item():.4f} | JEPA: {jepa_loss.item():.4f} | Time/batch: {elapsed:.2f}s", flush=True)
                 
         # --- VALIDATION LOOP ---
         print(f"Running Validation for Epoch {epoch}...")
@@ -220,12 +233,11 @@ def main():
                 mel_specs = mel_specs.to(device)
                 text_ids = text_ids.to(device)
                 
-                autocast_dtype = torch.float32 if device.type == "cpu" else torch.bfloat16
-                with torch.amp.autocast(device_type=device.type, dtype=autocast_dtype):
-                    ema_x = ema_model.forward_ema_encoder(mel_specs, text_ids)
-                    diffloss, jepa_loss = model(mel_specs, text_ids, ema_x=ema_x)
-                    val_loss = diffloss + jepa_loss
-                    val_losses.append(val_loss.item())
+                # Run validation in native FP32 to bypass PyTorch .eval() mixed precision bugs
+                ema_x = ema_model.forward_ema_encoder(mel_specs, text_ids)
+                diffloss, jepa_loss = model(mel_specs, text_ids, ema_x=ema_x)
+                val_loss = diffloss + jepa_loss
+                val_losses.append(val_loss.item())
         
         avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0
         print(f"Validation Loss: {avg_val_loss:.4f}")
@@ -247,23 +259,23 @@ def main():
             
         # 1. Save Last Epoch (Overwrites previous last-epoch)
         # Find any existing last-epoch files and delete them
-        for f in os.listdir("training_logs"):
+        for f in os.listdir(log_dir):
             if f.startswith("last-epoch=") and f.endswith(".ckpt"):
-                os.remove(os.path.join("training_logs", f))
+                os.remove(os.path.join(log_dir, f))
                 
-        last_ckpt_path = os.path.join("training_logs", f"last-epoch={epoch:03d}.ckpt")
+        last_ckpt_path = os.path.join(log_dir, f"last-epoch={epoch:03d}.ckpt")
         torch.save(lightning_ckpt, last_ckpt_path)
         print(f"Saved latest checkpoint: {last_ckpt_path}")
         
         # 2. Save Best Epoch if loss improved
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            best_ckpt_path = os.path.join("training_logs", f"best-epoch={epoch:03d}.ckpt")
+            best_ckpt_path = os.path.join(log_dir, f"best-epoch={epoch:03d}.ckpt")
             torch.save(lightning_ckpt, best_ckpt_path)
             print(f"Saved best checkpoint: {best_ckpt_path}")
             
             # Clean up old best checkpoints (keep top 3)
-            clean_old_checkpoints("training_logs", max_keep=3)
+            clean_old_checkpoints(log_dir, max_keep=3)
 
 if __name__ == "__main__":
     main()

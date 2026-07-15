@@ -4,7 +4,7 @@ import lightning as L
 from models.jepat import JEPAT_base
 
 class JEPATLightning(L.LightningModule):
-    def __init__(self, learning_rate=1e-4, ema_decay=0.9999, **kwargs):
+    def __init__(self, learning_rate=1e-4, ema_decay=0.9999, language='arabic', **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.learning_rate = learning_rate
@@ -13,7 +13,7 @@ class JEPATLightning(L.LightningModule):
         # Initialize the base model
         self.model = JEPAT_base(
             in_channels=1, 
-            language='arabic',
+            language=language,
             spec_height=100, 
             spec_width=512,
             diffloss='flow', # Using Flow Matching

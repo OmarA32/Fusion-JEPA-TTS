@@ -5,6 +5,8 @@ import torchaudio
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from datasets import load_dataset, Audio
+import urllib.request
+import zipfile
 
 # Ensure local imports work
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -13,15 +15,37 @@ if PROJECT_ROOT not in sys.path:
 
 from text import arabic_to_phonemes, phonemes_to_tokens, tokens_to_ids, phon_to_id_
 
+def download_and_extract_nawar_halabi(data_dir):
+    """Downloads and extracts the Nawar Halabi dataset if missing."""
+    target_dir = os.path.join(data_dir, "arabic-speech-corpus")
+    if os.path.exists(target_dir):
+        return target_dir
+        
+    print("Nawar Halabi dataset not found locally. Auto-downloading...")
+    os.makedirs(data_dir, exist_ok=True)
+    zip_path = os.path.join(data_dir, "arabic-speech-corpus.zip")
+    
+    url = "https://en.arabicspeechcorpus.com/arabic-speech-corpus.zip"
+    print(f"Downloading from {url} (this may take a while)...")
+    urllib.request.urlretrieve(url, zip_path)
+    
+    print("Extracting zip file...")
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(data_dir)
+        
+    print("Download and extraction complete!")
+    return target_dir
+
 class JEPADataset(Dataset):
-    def __init__(self, split="train[:100]", jepa_sr=24000, max_frames=512, n_mels=100):
+    def __init__(self, split="train", lang="arabic", db="common_voice", jepa_sr=24000, max_frames=512, n_mels=100):
         super().__init__()
-        print(f"Loading HF dataset split {split}...")
-        self.dataset = list(load_dataset("MohamedRashad/common-voice-18-arabic", split=split).cast_column("audio", Audio(decode=False)))
+        self.lang = lang.lower()
+        self.db = db.lower()
+        self.split = split
         self.jepa_sr = jepa_sr
         self.max_frames = max_frames
         
-        # Extract mel spectrograms dynamically
+        # Audio extraction function
         self.jepa_mel_fn = torchaudio.transforms.MelSpectrogram(
             sample_rate=jepa_sr,
             n_mels=n_mels,
@@ -31,6 +55,61 @@ class JEPADataset(Dataset):
             f_min=0,
             f_max=12000
         )
+        
+        self.data_dir = os.path.join(PROJECT_ROOT, "data")
+        self.dataset = []
+        self._load_database()
+
+    def _load_database(self):
+        print(f"Loading {self.lang.upper()} dataset: {self.db.upper()}...")
+        
+        if self.lang == "arabic":
+            if self.db == "common_voice":
+                # Use HF native filter for high-speed offline disk caching
+                hf_split = "train" if "train" in self.split else "validation"
+                ds = load_dataset("MohamedRashad/common-voice-18-arabic", split=hf_split)
+                ds = ds.cast_column("audio", Audio(decode=False))
+                self.dataset = ds.filter(lambda x: x['gender'] == 'male_masculine')
+                print(f"Loaded {len(self.dataset)} male clips from Common Voice.")
+                
+            elif self.db == "nawar_halabi":
+                target_dir = download_and_extract_nawar_halabi(self.data_dir)
+                wavs_dir = os.path.join(target_dir, "wav")
+                # Parse metadata (assuming phonetic or lab files exist, or just raw wavs)
+                # For V3 prototype, we just load wav files and dummy text until text-parsing is refined
+                wav_files = [f for f in os.listdir(wavs_dir) if f.endswith(".wav")]
+                for f in wav_files:
+                    self.dataset.append({
+                        "audio_path": os.path.join(wavs_dir, f),
+                        "sentence": "مَرْحَبَاً" # Placeholder until metadata parser is written
+                    })
+                print(f"Loaded {len(self.dataset)} clips from Nawar Halabi.")
+            else:
+                raise ValueError(f"Database {self.db} not supported for Arabic.")
+                
+        elif self.lang == "english":
+            if self.db == "ljspeech":
+                ds = torchaudio.datasets.LJSPEECH(self.data_dir, download=True)
+                for item in ds:
+                    self.dataset.append({
+                        "audio_tensor": item[0],
+                        "sample_rate": item[1],
+                        "sentence": item[2]
+                    })
+                print(f"Loaded {len(self.dataset)} clips from LJSpeech.")
+            elif self.db == "libritts":
+                ds = torchaudio.datasets.LIBRITTS(self.data_dir, url="train-clean-100", download=True)
+                for item in ds:
+                    self.dataset.append({
+                        "audio_tensor": item[0],
+                        "sample_rate": item[1],
+                        "sentence": item[2]
+                    })
+                print(f"Loaded {len(self.dataset)} clips from LibriTTS.")
+            else:
+                raise ValueError(f"Database {self.db} not supported for English.")
+        else:
+            raise ValueError(f"Language {self.lang} not supported.")
 
     def __len__(self):
         return len(self.dataset)
@@ -39,17 +118,23 @@ class JEPADataset(Dataset):
         item = self.dataset[idx]
         
         # --- Audio Processing ---
-        import io
-        import soundfile as sf
-        audio_bytes = item['audio']['bytes']
-        wav_np, sr = sf.read(io.BytesIO(audio_bytes))
-        wav = torch.tensor(wav_np, dtype=torch.float32)
-        
+        if self.lang == "arabic" and self.db == "common_voice":
+            import io
+            import soundfile as sf
+            audio_bytes = item['audio']['bytes']
+            wav_np, sr = sf.read(io.BytesIO(audio_bytes))
+            wav = torch.tensor(wav_np, dtype=torch.float32)
+        elif self.lang == "arabic" and self.db == "nawar_halabi":
+            wav, sr = torchaudio.load(item['audio_path'])
+            wav = wav.squeeze(0) # mono
+        else:
+            # English datasets via torchaudio return tensors
+            wav = item['audio_tensor'].squeeze(0)
+            sr = item['sample_rate']
+            
         if sr != self.jepa_sr:
             wav = torchaudio.functional.resample(wav, sr, self.jepa_sr)
             
-        # JEPA expects input_size=[128, 512], which means 512 frames.
-        # With hop_length=320, 512 frames = (512 - 1) * 320 = 163520 samples.
         target_len = (self.max_frames - 1) * self.jepa_mel_fn.hop_length
         if len(wav) > target_len:
             wav = wav[:target_len]
@@ -60,12 +145,16 @@ class JEPADataset(Dataset):
         jepa_mel = torch.log(torch.clamp(jepa_mel, min=1e-5)) # log mel
         
         # --- Text Processing ---
-        phonemes = arabic_to_phonemes(item['sentence'])
-        tokens = phonemes_to_tokens(phonemes)
-        # Filter out punctuation/unknown tokens
-        tokens = [t for t in tokens if t in phon_to_id_]
-        text_ids = torch.LongTensor(tokens_to_ids(tokens))
-        
+        if self.lang == "arabic":
+            phonemes = arabic_to_phonemes(item['sentence'])
+            tokens = phonemes_to_tokens(phonemes)
+            tokens = [t for t in tokens if t in phon_to_id_]
+            text_ids = torch.LongTensor(tokens_to_ids(tokens))
+        else:
+            # English (Placeholder logic as requested by user)
+            # Just return a dummy tensor so training logic doesn't crash
+            text_ids = torch.LongTensor([0, 1, 2])
+            
         return {
             "text_ids": text_ids,
             "mel_tgt": jepa_mel

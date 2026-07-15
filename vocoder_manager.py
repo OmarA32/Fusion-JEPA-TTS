@@ -1,13 +1,5 @@
 import torch
 from vocos import Vocos
-import json
-import sys
-import os
-
-# Append the vocoder directory so the local HiFi-GAN models module can be imported
-sys.path.append(os.path.join(os.path.dirname(__file__), "vocoder"))
-from hifigan.env import AttrDict
-from hifigan.models import Generator as HiFiGANGenerator
 
 class VocoderManager:
     def __init__(self, vocoder_type="vocos", device=None):
@@ -21,23 +13,8 @@ class VocoderManager:
         if self.vocoder_type == 'vocos':
             # Dynamically pull state-of-the-art Vocos from HuggingFace
             self.model = Vocos.from_pretrained("charactr/vocos-mel-24khz").to(self.device)
-        elif self.vocoder_type == 'hifigan':
-            # Load local custom HiFi-GAN
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(base_dir, "pretrained", "hifigan-asc-v1", "config.json")
-            weights_path = os.path.join(base_dir, "pretrained", "hifigan-asc-v1", "hifigan-asc.pth")
-            
-            with open(config_path) as f:
-                h = AttrDict(json.load(f))
-            self.model = HiFiGANGenerator(h).to(self.device)
-            state_dict = torch.load(weights_path, map_location=self.device)
-            if "generator" in state_dict:
-                state_dict = state_dict["generator"]
-            self.model.load_state_dict(state_dict)
-            self.model.eval()
-            self.model.remove_weight_norm()
         else:
-            raise ValueError("Invalid vocoder_type. Choose 'vocos', or 'hifigan'.")
+            raise ValueError("Invalid vocoder_type. Only 'vocos' is supported in V3.")
         print(f"{self.vocoder_type.upper()} loaded successfully.")
 
     @torch.no_grad()
@@ -49,8 +26,5 @@ class VocoderManager:
         
         if self.vocoder_type == 'vocos':
             audio = self.model.decode(mel_spectrogram)
-        elif self.vocoder_type == 'hifigan':
-            audio = self.model(mel_spectrogram)
-            audio = audio.squeeze(1) # Remove channel dim if present
             
         return audio
