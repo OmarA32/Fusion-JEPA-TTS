@@ -75,14 +75,24 @@ class JEPADataset(Dataset):
             elif self.db == "nawar_halabi":
                 target_dir = download_and_extract_nawar_halabi(self.data_dir)
                 wavs_dir = os.path.join(target_dir, "wav")
-                # Parse metadata (assuming phonetic or lab files exist, or just raw wavs)
-                # For V3 prototype, we just load wav files and dummy text until text-parsing is refined
-                wav_files = [f for f in os.listdir(wavs_dir) if f.endswith(".wav")]
-                for f in wav_files:
-                    self.dataset.append({
-                        "audio_path": os.path.join(wavs_dir, f),
-                        "sentence": "مَرْحَبَاً" # Placeholder until metadata parser is written
-                    })
+                transcript_path = os.path.join(target_dir, "orthographic-transcript.txt")
+                
+                with open(transcript_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                
+                for line in lines:
+                    parts = line.strip().split('" "')
+                    if len(parts) == 2:
+                        wav_name = parts[0].replace('"', '').strip()
+                        buckw_text = parts[1].replace('"', '').strip()
+                        audio_path = os.path.join(wavs_dir, wav_name)
+                        
+                        if os.path.exists(audio_path):
+                            self.dataset.append({
+                                "audio_path": audio_path,
+                                "sentence": buckw_text
+                            })
+                            
                 print(f"Loaded {len(self.dataset)} clips from Nawar Halabi.")
             else:
                 raise ValueError(f"Database {self.db} not supported for Arabic.")
@@ -125,8 +135,11 @@ class JEPADataset(Dataset):
             wav_np, sr = sf.read(io.BytesIO(audio_bytes))
             wav = torch.tensor(wav_np, dtype=torch.float32)
         elif self.lang == "arabic" and self.db == "nawar_halabi":
-            wav, sr = torchaudio.load(item['audio_path'])
-            wav = wav.squeeze(0) # mono
+            import soundfile as sf
+            wav_np, sr = sf.read(item['audio_path'])
+            wav = torch.tensor(wav_np, dtype=torch.float32)
+            if len(wav.shape) > 1:
+                wav = wav[:, 0] # convert to mono if stereo
         else:
             # English datasets via torchaudio return tensors
             wav = item['audio_tensor'].squeeze(0)
@@ -146,7 +159,11 @@ class JEPADataset(Dataset):
         
         # --- Text Processing ---
         if self.lang == "arabic":
-            phonemes = arabic_to_phonemes(item['sentence'])
+            if self.db == "nawar_halabi":
+                from text import buckwalter_to_phonemes
+                phonemes = buckwalter_to_phonemes(item['sentence'])
+            else:
+                phonemes = arabic_to_phonemes(item['sentence'])
             tokens = phonemes_to_tokens(phonemes)
             tokens = [t for t in tokens if t in phon_to_id_]
             text_ids = torch.LongTensor(tokens_to_ids(tokens))

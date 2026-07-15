@@ -1,0 +1,232 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0.0
+xmax = 5.54
+tiers? <exists>
+size = 2
+item []:
+	item [1]:
+		class = "IntervalTier"
+		name = "phones"
+		xmin = 0.0
+		xmax = 5.54
+		intervals: size = 42
+			intervals [1]:
+				xmin = 0.0
+				xmax = 0.13
+				text = "sil"
+			intervals [2]:
+				xmin = 0.13
+				xmax = 0.24
+				text = "H"
+			intervals [3]:
+				xmin = 0.24
+				xmax = 0.31
+				text = "a'"
+			intervals [4]:
+				xmin = 0.31
+				xmax = 0.39
+				text = "d"
+			intervals [5]:
+				xmin = 0.39
+				xmax = 0.49
+				text = "a"
+			intervals [6]:
+				xmin = 0.49
+				xmax = 0.58
+				text = "^"
+			intervals [7]:
+				xmin = 0.58
+				xmax = 0.62
+				text = "a"
+			intervals [8]:
+				xmin = 0.62
+				xmax = 0.76
+				text = "*"
+			intervals [9]:
+				xmin = 0.76
+				xmax = 0.94
+				text = "aa'"
+			intervals [10]:
+				xmin = 0.94
+				xmax = 1.0
+				text = "l"
+			intervals [11]:
+				xmin = 1.0
+				xmax = 1.06
+				text = "i0"
+			intervals [12]:
+				xmin = 1.06
+				xmax = 1.16
+				text = "k"
+			intervals [13]:
+				xmin = 1.16
+				xmax = 1.25
+				text = "a"
+			intervals [14]:
+				xmin = 1.25
+				xmax = 1.4
+				text = "f"
+			intervals [15]:
+				xmin = 1.4
+				xmax = 1.55
+				text = "ii0'"
+			intervals [16]:
+				xmin = 1.55
+				xmax = 1.71
+				text = "H"
+			intervals [17]:
+				xmin = 1.71
+				xmax = 1.79
+				text = "a'"
+			intervals [18]:
+				xmin = 1.79
+				xmax = 2.01
+				text = "y"
+			intervals [19]:
+				xmin = 2.01
+				xmax = 2.49
+				text = "sil"
+			intervals [20]:
+				xmin = 2.49
+				xmax = 2.57
+				text = "y"
+			intervals [21]:
+				xmin = 2.57
+				xmax = 2.6
+				text = "a"
+			intervals [22]:
+				xmin = 2.6
+				xmax = 2.72
+				text = "E"
+			intervals [23]:
+				xmin = 2.72
+				xmax = 2.89
+				text = "q"
+			intervals [24]:
+				xmin = 2.89
+				xmax = 3.05
+				text = "UU0'"
+			intervals [25]:
+				xmin = 3.05
+				xmax = 3.14
+				text = "b"
+			intervals [26]:
+				xmin = 3.14
+				xmax = 3.21
+				text = "a"
+			intervals [27]:
+				xmin = 3.21
+				xmax = 3.29
+				text = "l"
+			intervals [28]:
+				xmin = 3.29
+				xmax = 3.4
+				text = "m"
+			intervals [29]:
+				xmin = 3.4
+				xmax = 3.45
+				text = "a"
+			intervals [30]:
+				xmin = 3.45
+				xmax = 3.52
+				text = "n"
+			intervals [31]:
+				xmin = 3.52
+				xmax = 3.69
+				text = "S"
+			intervals [32]:
+				xmin = 3.69
+				xmax = 3.92
+				text = "UU0'"
+			intervals [33]:
+				xmin = 3.92
+				xmax = 4.06
+				text = "r"
+			intervals [34]:
+				xmin = 4.06
+				xmax = 4.36
+				text = "sil"
+			intervals [35]:
+				xmin = 4.36
+				xmax = 4.7
+				text = "$$"
+			intervals [36]:
+				xmin = 4.7
+				xmax = 4.74
+				text = "a"
+			intervals [37]:
+				xmin = 4.74
+				xmax = 4.9
+				text = "E"
+			intervals [38]:
+				xmin = 4.9
+				xmax = 4.99
+				text = "b"
+			intervals [39]:
+				xmin = 4.99
+				xmax = 5.13
+				text = "ii0'"
+			intervals [40]:
+				xmin = 5.13
+				xmax = 5.3
+				text = "y"
+			intervals [41]:
+				xmin = 5.3
+				xmax = 5.45
+				text = "i0"
+			intervals [42]:
+				xmin = 5.45
+				xmax = 5.54
+				text = "sil"
+	item [2]:
+		class = "IntervalTier"
+		name = "words"
+		xmin = 0.0
+		xmax = 5.54
+		intervals: size = 11
+			intervals [1]:
+				xmin = 0.0
+				xmax = 0.13
+				text = "sil"
+			intervals [2]:
+				xmin = 0.13
+				xmax = 0.62
+				text = "Hada^a"
+			intervals [3]:
+				xmin = 0.62
+				xmax = 1.25
+				text = "*alika"
+			intervals [4]:
+				xmin = 1.25
+				xmax = 1.55
+				text = "fiy"
+			intervals [5]:
+				xmin = 1.55
+				xmax = 2.01
+				text = "Hay"
+			intervals [6]:
+				xmin = 2.01
+				xmax = 2.49
+				text = "sil"
+			intervals [7]:
+				xmin = 2.49
+				xmax = 3.21
+				text = "yaEquwba"
+			intervals [8]:
+				xmin = 3.21
+				xmax = 4.06
+				text = "lmanSuwr-"
+			intervals [9]:
+				xmin = 4.06
+				xmax = 4.36
+				text = "sp"
+			intervals [10]:
+				xmin = 4.36
+				xmax = 5.45
+				text = "l$~aEbiy~i"
+			intervals [11]:
+				xmin = 5.45
+				xmax = 5.54
+				text = "sil"

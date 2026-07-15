@@ -11,7 +11,7 @@ from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
-def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav"):
+def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos"):
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         device = "xpu"
     elif torch.cuda.is_available():
@@ -97,8 +97,8 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         
     model.eval()
 
-    print("Initializing Vocos Vocoder (100-mel 24kHz)...")
-    vocoder = VocoderManager(vocoder_type='vocos', device=device)
+    print(f"Loading {vocoder.upper()} Vocoder...")
+    vocoder_instance = VocoderManager(vocoder_type=vocoder, device=device)
 
     print("Processing Text...")
     try:
@@ -133,7 +133,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
 
     print("Running Vocoder Synthesis...")
     with torch.no_grad():
-        audio_waveform = vocoder.generate_audio(mel_for_vocoder)
+        audio_waveform = vocoder_instance.generate_audio(mel_for_vocoder)
     
     print(f"Generated Audio Shape: {audio_waveform.shape}")
 
@@ -156,6 +156,8 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default="output_test.wav", help="Output WAV file path")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language of the model.")
     parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database the model was trained on.")
+    parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
+    parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos", "bigvgan"], help="Vocoder to use.")
     args = parser.parse_args()
 
     valid_dbs = {
@@ -166,5 +168,22 @@ if __name__ == "__main__":
         print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
         print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
         sys.exit(1)
+        
+    if args.index is not None:
+        from data.dataset import JEPADataset
+        import os
+        print(f"Loading {args.lang.upper()} {args.db.upper()} test dataset to fetch index {args.index}...")
+        test_dataset = JEPADataset(split="test", lang=args.lang, db=args.db)
+        if args.index >= len(test_dataset):
+            print(f"[ERROR] Index {args.index} is out of bounds! The dataset only has {len(test_dataset)} items.")
+            sys.exit(1)
+            
+        # Extract original text directly from HuggingFace dataset object
+        item = test_dataset.dataset[args.index]
+        args.text = item.get('sentence', item.get('text', ''))
+        print(f"\n[Index {args.index} Text]: {args.text}\n")
+        
+        os.makedirs("test_results", exist_ok=True)
+        args.output = f"test_results/inference_index_{args.index}.wav"
     
-    generate_audio(args.text, args.lang, args.db, args.output)
+    generate_audio(args.text, args.lang, args.db, args.output, args.vocoder)

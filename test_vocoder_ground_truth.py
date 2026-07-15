@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos"])
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"])
     parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"])
+    parser.add_argument("--index", type=int, default=10, help="The dataset index to pull the audio sample from.")
     args = parser.parse_args()
     
     valid_dbs = {
@@ -27,8 +28,15 @@ def main():
     
     print(f"Loading {args.lang.upper()} {args.db.upper()} test dataset...")
     test_dataset = JEPADataset(split="test", lang=args.lang, db=args.db)
-    # Grab the 10th item for testing
-    item = test_dataset[10]
+    
+    # Check if index is out of bounds
+    if args.index >= len(test_dataset):
+        print(f"[ERROR] Index {args.index} is out of bounds! The dataset only has {len(test_dataset)} items.")
+        import sys
+        sys.exit(1)
+        
+    # Grab the selected item for testing
+    item = test_dataset[args.index]
     
     mel_tgt = item['mel_tgt']
     if mel_tgt.dim() == 4:
@@ -49,7 +57,7 @@ def main():
     
     out_dir = "test_results"
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"ground_truth_index_10_{args.vocoder}.wav")
+    out_path = os.path.join(out_dir, f"ground_truth_index_{args.index}_{args.vocoder}.wav")
     
     wavfile.write(out_path, 24000, audio_int16)
     print(f"Saved: {out_path}")

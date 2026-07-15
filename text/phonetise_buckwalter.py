@@ -187,7 +187,8 @@ def preprocess_utterance(utterance):
     utterance = re.sub(u' >([^auAw ])', u' >a\\1', utterance)
     utterance = re.sub(u'<([^i])', u'<i\\1', utterance)
 
-    utterance = re.sub("(\S)(\.|\?|,|!)", "\\1 \\2", utterance)
+    # Strip all punctuation to prevent vocabulary mapping crashes
+    utterance = re.sub(r'[\.\?,!]', '', utterance)
 
     utterance = utterance.split(u' ')
 
