@@ -544,10 +544,7 @@ class JEPAT(nn.Module):
 
             # class embedding and cfg_scale
             if labels is not None:
-                if self.language == 'english':
-                    features = self.encode_labels_with_clip(labels)
-                else:
-                    features = self.get_phoneme_embedding(labels)
+                features = self.get_phoneme_embedding(labels)
                 class_embedding = self.class_emb(features)
             else:
                 class_embedding = self.fake_latent.repeat(bsz, 1)
