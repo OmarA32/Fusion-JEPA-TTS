@@ -14,6 +14,53 @@ from data.dataset import JEPADataset, jepa_collate_fn
 from models.jepat_lightning import JEPATLightning
 
 import re
+import json
+from huggingface_hub import HfApi, login
+
+class HuggingFaceUploadCallback(L.Callback):
+    def __init__(self, every_n_epochs, repo_id, log_dir):
+        self.every_n_epochs = every_n_epochs
+        self.repo_id = repo_id
+        self.log_dir = log_dir
+        self.hf_token = None
+        
+        if os.path.exists("hf_config.json"):
+            try:
+                with open("hf_config.json", "r") as f:
+                    self.hf_token = json.load(f).get("HF_TOKEN")
+            except Exception as e:
+                print(f"Error reading hf_config.json: {e}")
+                
+        if self.hf_token:
+            print(f"Hugging Face token found! Models will be automatically uploaded to {self.repo_id} every {self.every_n_epochs} epochs.")
+            try:
+                login(token=self.hf_token)
+            except Exception as e:
+                print(f"HF Login failed: {e}")
+        else:
+            print("Warning: No hf_config.json found or invalid token. Automatic HF uploads will fail.")
+            
+    def on_train_epoch_end(self, trainer, pl_module):
+        # trainer.current_epoch is 0-indexed, so add 1 to get standard epoch number
+        epoch = trainer.current_epoch + 1
+        if epoch % self.every_n_epochs == 0:
+            latest_ckpt, _, _ = get_latest_checkpoint(self.log_dir)
+            if latest_ckpt and self.hf_token:
+                print(f"\n[HF Upload] Epoch {epoch}: Uploading {latest_ckpt} to {self.repo_id}...")
+                try:
+                    api = HfApi()
+                    api.create_repo(repo_id=self.repo_id, exist_ok=True, repo_type="model")
+                    filename = os.path.basename(latest_ckpt)
+                    api.upload_file(
+                        path_or_fileobj=latest_ckpt,
+                        path_in_repo=filename,
+                        repo_id=self.repo_id,
+                        repo_type="model",
+                        commit_message=f"Auto-upload from Epoch {epoch}"
+                    )
+                    print(f"[HF Upload] Success!")
+                except Exception as e:
+                    print(f"[HF Upload] Error: {e}")
 
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory."""
@@ -65,6 +112,7 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
     parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
+    parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
     args = parser.parse_args()
     
     valid_dbs = {
@@ -124,6 +172,12 @@ def main():
         filename="last-epoch={epoch:03d}"
     )
 
+    callbacks_list = [checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=300)]
+    
+    if args.checkpointnum > 0:
+        repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
+        callbacks_list.append(HuggingFaceUploadCallback(every_n_epochs=args.checkpointnum, repo_id=repo_id, log_dir=log_dir))
+
     print("Configuring Lightning Trainer...")
     trainer = L.Trainer(
         max_epochs=10000, # Train indefinitely until stopped
@@ -131,7 +185,7 @@ def main():
         devices="auto",
         log_every_n_steps=50,
         gradient_clip_val=1.0,
-        callbacks=[checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=300)],
+        callbacks=callbacks_list,
         default_root_dir=log_dir
     )
 
