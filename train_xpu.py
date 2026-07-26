@@ -117,7 +117,7 @@ def main():
     if hasattr(torch, "xpu") and device.type == "xpu":
         num_gpus = torch.xpu.device_count()
         
-    batch_size = 16 if num_gpus > 1 else 8
+    batch_size = 8 # Hardcoded to 8 to prevent OOM
     print(f"Detected {num_gpus} GPUs on {device.type.upper()}. Using batch size {batch_size}.")
 
     train_loader = DataLoader(

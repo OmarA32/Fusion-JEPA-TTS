@@ -135,7 +135,7 @@ def main():
     
     # Robust Multi-GPU batch scaling
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    batch_size = 16 if num_gpus > 1 else 8
+    batch_size = 8 # Hardcoded to 8 to prevent OOM on 15GB GPUs
     print(f"Detected {num_gpus} GPUs. Using batch size {batch_size}.")
 
     train_loader = DataLoader(
