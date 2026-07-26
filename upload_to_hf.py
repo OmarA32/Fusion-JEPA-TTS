@@ -1,6 +1,15 @@
 import argparse
 import os
+import json
+import sys
 from huggingface_hub import HfApi, login
+
+def get_token():
+    if os.path.exists("hf_config.json"):
+        with open("hf_config.json", "r") as f:
+            data = json.load(f)
+            return data.get("HF_TOKEN", None)
+    return None
 
 def upload_model(checkpoint_path, repo_id, hf_token, commit_message="Upload best JEPA-TTS model"):
     if not os.path.exists(checkpoint_path):
@@ -28,10 +37,27 @@ def upload_model(checkpoint_path, repo_id, hf_token, commit_message="Upload best
     print("Upload complete!")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Upload JEPA-TTS weights to Hugging Face")
-    parser.add_argument("--ckpt", type=str, required=True, help="Path to the checkpoint file")
-    parser.add_argument("--repo", type=str, required=True, help="Hugging Face Repo ID")
-    parser.add_argument("--token", type=str, required=True, help="Hugging Face Write Token")
+    parser = argparse.ArgumentParser(description="Upload latest JEPA-TTS weights to Hugging Face")
+    parser.add_argument("--lang", type=str, required=True, choices=["arabic", "english"], help="Language model to upload")
+    parser.add_argument("--token", type=str, default=None, help="Hugging Face Write Token (optional if hf_config.json exists)")
     args = parser.parse_args()
     
-    upload_model(args.ckpt, args.repo, args.token)
+    # 1. Resolve Token
+    token = args.token or get_token()
+    if not token:
+        print("[ERROR] No Hugging Face token provided! Either pass --token or run the HF Auth notebook cell first.")
+        sys.exit(1)
+        
+    # 2. Resolve Repo
+    repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
+    
+    # 3. Resolve Checkpoint
+    from train import get_latest_checkpoint
+    log_dir = "training_logs/arabic/nawar_halabi" if args.lang == "arabic" else "training_logs/english/ljspeech"
+    latest_ckpt, ckpt_type, _ = get_latest_checkpoint(log_dir)
+    
+    if not latest_ckpt:
+        print(f"[ERROR] No checkpoints found in {log_dir} to upload!")
+        sys.exit(1)
+        
+    upload_model(latest_ckpt, repo_id, token)

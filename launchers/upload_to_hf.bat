@@ -7,12 +7,15 @@ if "%~1"=="" (
     echo  JEPA-TTS Hugging Face Model Uploader
     echo ==============================================
     echo.
-    set /p CKPT="1. Enter the path to your .ckpt file (e.g. training_logs\arabic\nawar_halabi\best-epoch=010.ckpt): "
-    set /p REPO="2. Enter your Hugging Face Repo ID (e.g. KASP-JEPA/Project-Arabic): "
-    set /p TOKEN="3. Enter your Hugging Face WRITE token: "
+    set /p LANG="1. Enter the language model (arabic or english): "
+    set /p TOKEN="2. (Optional) Enter your Hugging Face WRITE token (leave blank if you ran setup): "
     echo.
     echo Starting Upload...
-    venv\Scripts\python upload_to_hf.py --ckpt "%CKPT%" --repo "%REPO%" --token "%TOKEN%"
+    if "%TOKEN%"=="" (
+        venv\Scripts\python upload_to_hf.py --lang "%LANG%"
+    ) else (
+        venv\Scripts\python upload_to_hf.py --lang "%LANG%" --token "%TOKEN%"
+    )
     echo.
     pause
 ) else (
