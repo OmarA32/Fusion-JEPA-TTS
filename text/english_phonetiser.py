@@ -1,7 +1,18 @@
 import re
 import inflect
-from g2p_en import G2p
+import nltk
 
+def _ensure_nltk_resources():
+    resources = ['averaged_perceptron_tagger', 'averaged_perceptron_tagger_eng', 'cmudict']
+    for res in resources:
+        try:
+            nltk.data.find(f'tokenizers/{res}') if res == 'punkt' else nltk.data.find(f'taggers/{res}') if 'tagger' in res else nltk.data.find(f'corpora/{res}')
+        except LookupError:
+            nltk.download(res, quiet=True)
+
+_ensure_nltk_resources()
+
+from g2p_en import G2p
 _inflect = inflect.engine()
 _g2p = G2p()
 
