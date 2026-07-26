@@ -8,7 +8,7 @@ from vocoder_manager import VocoderManager
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vocoder", type=str, default="vocos", choices=["vocos", "bigvgan"], help="Vocoder to use.")
+    parser.add_argument("--vocoder", type=str, default="bigvgan", choices=["vocos", "bigvgan"], help="Vocoder to use.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"])
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
     parser.add_argument("--index", type=int, default=10, help="Index of the test dataset item to synthesize.")
