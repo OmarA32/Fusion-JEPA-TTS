@@ -15,6 +15,10 @@ from models.jepat_lightning import JEPATLightning
 
 import re
 import json
+import warnings
+
+# Mute harmless PyTorch DDP stream warnings
+warnings.filterwarnings("ignore", message=".*AccumulateGrad node's stream does not match.*")
 from huggingface_hub import HfApi, login
 
 class HuggingFaceUploadCallback(L.Callback):
@@ -186,7 +190,7 @@ def main():
     print("Configuring Lightning Trainer...")
     
     # Robust Multi-GPU Strategy
-    lightning_strategy = "ddp_find_unused_parameters_true" if num_gpus > 1 else "auto"
+    lightning_strategy = "ddp" if num_gpus > 1 else "auto"
     
     trainer = L.Trainer(
         max_epochs=10000, # Train indefinitely until stopped
