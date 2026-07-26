@@ -117,6 +117,7 @@ def main():
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
     parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
+    parser.add_argument("--skip_val", action="store_true", help="Skip validation loop during training.")
     args = parser.parse_args()
     
     valid_dbs = {
@@ -165,10 +166,10 @@ def main():
 
     # Configure checkpointing to save the best 3 epochs based on validation loss
     checkpoint_callback_best = ModelCheckpoint(
-        monitor="val/total_loss",
-        mode="min",
+        monitor="step" if args.skip_val else "val/total_loss",
+        mode="max" if args.skip_val else "min",
         every_n_epochs=1,
-        save_top_k=3, # Keep the 3 best epochs
+        save_top_k=3, # Keep the 3 best epochs (or 3 latest if skipping validation)
         filename="best-epoch={epoch:03d}"
     )
 
@@ -197,6 +198,7 @@ def main():
         accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
         devices="auto",
         strategy=lightning_strategy,
+        limit_val_batches=0.0 if args.skip_val else 1.0,
         log_every_n_steps=50,
         gradient_clip_val=1.0,
         callbacks=callbacks_list,
