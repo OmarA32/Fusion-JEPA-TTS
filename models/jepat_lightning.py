@@ -14,7 +14,7 @@ class JEPATLightning(L.LightningModule):
         self.model = JEPAT_base(
             in_channels=1, 
             language=language,
-            spec_height=100, 
+            spec_height=128, 
             spec_width=512,
             diffloss='flow', # Using Flow Matching
             jepaloss='jepa'
