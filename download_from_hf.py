@@ -36,15 +36,14 @@ def main():
         print("No checkpoint files found in the repository!")
         return
 
-    # Try to find the latest last-epoch first, otherwise fallback to the highest best-epoch
+    # Try to find the latest last.ckpt first, otherwise fallback to the highest best-epoch
     def extract_epoch(filename):
         match = re.search(r'epoch=(\d+)', filename)
         return int(match.group(1)) if match else -1
 
-    # Prefer last-epoch over best-epoch for resuming
-    last_epochs = [f for f in ckpt_files if "last-epoch" in f]
-    if last_epochs:
-        latest_file = max(last_epochs, key=extract_epoch)
+    # Prefer last.ckpt for resuming
+    if any(f.endswith("last.ckpt") for f in ckpt_files):
+        latest_file = next(f for f in ckpt_files if f.endswith("last.ckpt"))
     else:
         latest_file = max(ckpt_files, key=extract_epoch)
 

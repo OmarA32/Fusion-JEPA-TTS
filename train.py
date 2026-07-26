@@ -170,19 +170,11 @@ def main():
         mode="min" if args.val else "max",
         every_n_epochs=1,
         save_top_k=3, # Keep the 3 best epochs (or 3 latest if skipping validation)
+        save_last=True, # Always save the absolute latest state as last.ckpt
         filename="best-epoch={epoch:03d}"
     )
 
-    # Configure a second checkpoint to ALWAYS save the absolute latest epoch with its number
-    checkpoint_callback_last = ModelCheckpoint(
-        monitor="step", # Monitor the global step to always get the latest
-        mode="max",
-        every_n_epochs=1,
-        save_top_k=1, # Only keep 1 file to prevent disk crash
-        filename="last-epoch={epoch:03d}"
-    )
-
-    callbacks_list = [checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=1)]
+    callbacks_list = [checkpoint_callback_best, TQDMProgressBar(refresh_rate=1)]
     
     if args.checkpointnum > 0:
         repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
