@@ -177,7 +177,7 @@ def main():
         filename="last-epoch={epoch:03d}"
     )
 
-    callbacks_list = [checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=300)]
+    callbacks_list = [checkpoint_callback_best, checkpoint_callback_last, TQDMProgressBar(refresh_rate=1)]
     
     if args.checkpointnum > 0:
         repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
