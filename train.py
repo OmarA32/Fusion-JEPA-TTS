@@ -132,10 +132,15 @@ def main():
     train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
     # Dynamically optimize data loading for Linux while keeping Windows safe
     workers = 4 if os.name != 'nt' else 0
+    
+    # Robust Multi-GPU batch scaling
+    num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    batch_size = 16 if num_gpus > 1 else 8
+    print(f"Detected {num_gpus} GPUs. Using batch size {batch_size}.")
 
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=8, 
+        batch_size=batch_size, 
         shuffle=True, 
         collate_fn=jepa_collate_fn,
         num_workers=workers 
@@ -145,7 +150,7 @@ def main():
     val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
     val_loader = DataLoader(
         val_dataset,
-        batch_size=8,
+        batch_size=batch_size,
         shuffle=False,
         collate_fn=jepa_collate_fn,
         num_workers=workers
@@ -179,10 +184,15 @@ def main():
         callbacks_list.append(HuggingFaceUploadCallback(every_n_epochs=args.checkpointnum, repo_id=repo_id, log_dir=log_dir))
 
     print("Configuring Lightning Trainer...")
+    
+    # Robust Multi-GPU Strategy
+    lightning_strategy = "ddp_find_unused_parameters_true" if num_gpus > 1 else "auto"
+    
     trainer = L.Trainer(
         max_epochs=10000, # Train indefinitely until stopped
         accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
         devices="auto",
+        strategy=lightning_strategy,
         log_every_n_steps=50,
         gradient_clip_val=1.0,
         callbacks=callbacks_list,

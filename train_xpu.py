@@ -112,9 +112,17 @@ def main():
     val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
     workers = 4 if os.name != 'nt' else 0
 
+    # Robust Multi-GPU batch scaling
+    num_gpus = torch.cuda.device_count() if device.type == "cuda" else 0
+    if hasattr(torch, "xpu") and device.type == "xpu":
+        num_gpus = torch.xpu.device_count()
+        
+    batch_size = 16 if num_gpus > 1 else 8
+    print(f"Detected {num_gpus} GPUs on {device.type.upper()}. Using batch size {batch_size}.")
+
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=8, 
+        batch_size=batch_size, 
         shuffle=True, 
         collate_fn=jepa_collate_fn,
         num_workers=workers 
@@ -122,7 +130,7 @@ def main():
     
     val_loader = DataLoader(
         val_dataset,
-        batch_size=8,
+        batch_size=batch_size,
         shuffle=False,
         collate_fn=jepa_collate_fn,
         num_workers=workers
@@ -141,6 +149,11 @@ def main():
     ema_model = copy.deepcopy(model).to(device)
     for param in ema_model.parameters():
         param.requires_grad = False
+        
+    if num_gpus > 1:
+        print(f"Wrapping models in DataParallel across {num_gpus} GPUs...")
+        model = torch.nn.DataParallel(model)
+        ema_model = torch.nn.DataParallel(ema_model)
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=1e-4, betas=(0.9, 0.95), weight_decay=0.02)
@@ -251,10 +264,13 @@ def main():
             "pytorch-lightning_version": L.__version__
         }
         
-        # Inject state dict with Lightning prefixes
-        for k, v in model.state_dict().items():
+        # Inject state dict with Lightning prefixes (strip DataParallel 'module.' prefix if present)
+        model_state = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
+        ema_state = ema_model.module.state_dict() if isinstance(ema_model, torch.nn.DataParallel) else ema_model.state_dict()
+        
+        for k, v in model_state.items():
             lightning_ckpt["state_dict"][f"model.{k}"] = v
-        for k, v in ema_model.state_dict().items():
+        for k, v in ema_state.items():
             lightning_ckpt["state_dict"][f"ema_model.{k}"] = v
             
         # 1. Save Last Epoch (Overwrites previous last-epoch)
