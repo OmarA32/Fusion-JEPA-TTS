@@ -114,11 +114,33 @@ class JEPADataset(Dataset):
             if self.db == "ljspeech":
                 ljs_path = os.path.join(self.data_dir, "LJSpeech-1.1")
                 if not os.path.exists(ljs_path):
-                    print("LJSpeech not found, attempting to trigger torchaudio download...")
-                    try:
-                        torchaudio.datasets.LJSPEECH(self.data_dir, download=True)
-                    except Exception:
-                        pass # Windows throws UnicodeDecodeError after download completes
+                    print("LJSpeech not found. Downloading via Python...")
+                    import urllib.request
+                    import tarfile
+                    
+                    tar_url = "https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2"
+                    tar_path = os.path.join(self.data_dir, "LJSpeech-1.1.tar.bz2")
+                    
+                    # 1. Download
+                    if not os.path.exists(tar_path):
+                        print(f"Downloading {tar_url}...")
+                        def _progress(count, block_size, total_size):
+                            percent = int(count * block_size * 100 / total_size)
+                            if percent % 10 == 0:
+                                print(f"\rDownloading... {percent}%", end="")
+                        urllib.request.urlretrieve(tar_url, tar_path, reporthook=_progress)
+                        print("\nDownload complete.")
+                    
+                    # 2. Extract
+                    print("Extracting LJSpeech...")
+                    with tarfile.open(tar_path, "r:bz2") as tar:
+                        tar.extractall(path=self.data_dir)
+                    
+                    # 3. Clean up
+                    os.remove(tar_path)
+                    
+                    if not os.path.exists(ljs_path):
+                        raise RuntimeError("LJSpeech download/extraction failed!")
                         
                 csv_path = os.path.join(ljs_path, "metadata.csv")
                 wavs_dir = os.path.join(ljs_path, "wavs")
