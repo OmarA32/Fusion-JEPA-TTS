@@ -9,3 +9,4 @@ timm
 git+https://github.com/openai/CLIP.git
 torchdiffeq
 huggingface-hub>=1.5.0
+g2p_en
