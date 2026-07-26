@@ -111,7 +111,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
-    parser.add_argument("--db", type=str, default="common_voice", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
+    parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
     parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
     args = parser.parse_args()
     
