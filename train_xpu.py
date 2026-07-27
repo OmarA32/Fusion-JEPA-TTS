@@ -59,7 +59,7 @@ def get_latest_checkpoint(log_dir):
     else:
         return latest_pt, "pt", max_pt_epoch
 
-def clean_old_checkpoints(log_dir, max_keep=3):
+def clean_old_checkpoints(log_dir, max_keep=1):
     """Keep only the most recent N best checkpoints to save disk space."""
     best_ckpts = []
     if os.path.exists(log_dir):

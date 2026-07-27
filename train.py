@@ -169,7 +169,7 @@ def main():
         monitor="val/total_loss" if args.val else "step",
         mode="min" if args.val else "max",
         every_n_epochs=1,
-        save_top_k=3, # Keep the 3 best epochs (or 3 latest if skipping validation)
+        save_top_k=1, # Reduced to 1 to save massive amounts of disk space on Kaggle
         save_last=True, # Always save the absolute latest state as last.ckpt
         filename="best-epoch={epoch:03d}"
     )
