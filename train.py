@@ -48,7 +48,7 @@ class HuggingFaceUploadCallback(L.Callback):
     def on_train_epoch_end(self, trainer, pl_module):
         # trainer.current_epoch is 0-indexed, so add 1 to get standard epoch number
         epoch = trainer.current_epoch + 1
-        if epoch % self.every_n_epochs == 0:
+        if epoch % self.every_n_epochs == 0 and trainer.is_global_zero:
             # Wait for PyTorch Lightning's background saver thread to finish writing the new checkpoint
             time.sleep(3)
             latest_ckpt, _, _ = get_latest_checkpoint(self.log_dir)
