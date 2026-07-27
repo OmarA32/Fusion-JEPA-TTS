@@ -69,6 +69,12 @@ class HuggingFaceUploadCallback(L.Callback):
                 except Exception as e:
                     print(f"[HF Upload] Error: {e}")
 
+class SaveLastCheckpointCallback(L.Callback):
+    def on_train_epoch_end(self, trainer, pl_module):
+        if trainer.is_global_zero:
+            ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
+            trainer.save_checkpoint(ckpt_path)
+
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory."""
     latest_pt = None
@@ -168,16 +174,19 @@ def main():
     model = JEPATLightning(learning_rate=1e-4, language=args.lang)
 
     # Configure checkpointing to save the best 3 epochs based on validation loss (or latest 3 if val is off)
-    checkpoint_callback_best = ModelCheckpoint(
-        monitor="val/total_loss" if args.val else None,
-        mode="min",
-        every_n_epochs=1,
-        save_top_k=1 if args.val else 0, # Set to 0 if val is disabled to prevent Lightning path mismatch crash when resuming
-        save_last=True, # Always save the absolute latest state as last.ckpt
-        filename="best-epoch={epoch:03d}"
-    )
+    if args.val:
+        checkpoint_callback = ModelCheckpoint(
+            monitor="val/total_loss",
+            mode="min",
+            every_n_epochs=1,
+            save_top_k=1,
+            save_last=True,
+            filename="best-epoch={epoch:03d}"
+        )
+    else:
+        checkpoint_callback = SaveLastCheckpointCallback()
 
-    callbacks_list = [checkpoint_callback_best, TQDMProgressBar(refresh_rate=1)]
+    callbacks_list = [checkpoint_callback, TQDMProgressBar(refresh_rate=1)]
     
     if args.checkpointnum > 0:
         repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
