@@ -58,14 +58,11 @@ def main():
         return
 
     print(f"Downloading to {local_dir}...")
-    downloaded_path = hf_hub_download(
-        repo_id=repo_id,
-        filename=latest_file,
-        local_dir=local_dir,
-        token=token
-    )
-    
-    print(f"Successfully downloaded to: {downloaded_path}")
+    try:
+        hf_hub_download(repo_id=repo_id, filename=latest_file, local_dir=local_dir, local_dir_use_symlinks=False, token=token)
+        print(f"Successfully downloaded to {local_dir}/{latest_file.split('/')[-1]}")
+    except Exception as e:
+        print(f"Failed to download: {e}")
 
 if __name__ == "__main__":
     main()

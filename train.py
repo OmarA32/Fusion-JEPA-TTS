@@ -16,6 +16,7 @@ from models.jepat_lightning import JEPATLightning
 import re
 import json
 import warnings
+import time
 
 # Mute harmless PyTorch DDP stream warnings
 warnings.filterwarnings("ignore", message=".*AccumulateGrad node's stream does not match.*")
@@ -48,6 +49,8 @@ class HuggingFaceUploadCallback(L.Callback):
         # trainer.current_epoch is 0-indexed, so add 1 to get standard epoch number
         epoch = trainer.current_epoch + 1
         if epoch % self.every_n_epochs == 0:
+            # Wait for PyTorch Lightning's background saver thread to finish writing the new checkpoint
+            time.sleep(3)
             latest_ckpt, _, _ = get_latest_checkpoint(self.log_dir)
             if latest_ckpt and self.hf_token:
                 print(f"\n[HF Upload] Epoch {epoch}: Uploading {latest_ckpt} to {self.repo_id}...")
