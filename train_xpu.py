@@ -94,8 +94,8 @@ def main():
         print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
         sys.exit(1)
         
-    # Isolate training logs by language and database to prevent checkpoint clashing
-    log_dir = os.path.join("training_logs", args.lang, args.db)
+    # Isolate training logs by language to prevent checkpoint clashing
+    log_dir = os.path.join("training_logs", args.lang)
     os.makedirs(log_dir, exist_ok=True)
 
     print("Initializing Device...")

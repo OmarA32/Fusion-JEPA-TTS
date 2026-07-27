@@ -129,7 +129,7 @@ def main():
         print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
         sys.exit(1)
         
-    log_dir = os.path.join("training_logs", args.lang, args.db)
+    log_dir = os.path.join("training_logs", args.lang)
     os.makedirs(log_dir, exist_ok=True)
 
     print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")

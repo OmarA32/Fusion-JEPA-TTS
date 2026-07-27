@@ -76,7 +76,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         else:
             return latest_pt, "pt", max_pt_epoch
 
-    log_dir = os.path.join("training_logs", lang, db)
+    log_dir = os.path.join("training_logs", lang)
     found_path, ckpt_type, _ = get_latest_checkpoint(log_dir)
     if found_path and os.path.exists(found_path):
         print(f"Loading weights from {found_path} ({ckpt_type})...")
