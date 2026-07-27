@@ -14,11 +14,15 @@ def get_token():
 def main():
     parser = argparse.ArgumentParser(description="Download latest weights from Hugging Face")
     parser.add_argument("--lang", type=str, choices=["arabic", "english"], required=True, help="Language model to download")
+    parser.add_argument("--db", type=str, default=None, choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database folder to download into")
     args = parser.parse_args()
+
+    if args.db is None:
+        args.db = "nawar_halabi" if args.lang == "arabic" else "ljspeech"
 
     token = get_token()
     repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
-    local_dir = "training_logs/arabic/nawar_halabi" if args.lang == "arabic" else "training_logs/english/ljspeech"
+    local_dir = os.path.join("training_logs", args.lang, args.db)
 
     print(f"Connecting to {repo_id}...")
     api = HfApi(token=token)

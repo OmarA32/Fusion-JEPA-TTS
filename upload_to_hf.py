@@ -39,8 +39,13 @@ def upload_model(checkpoint_path, repo_id, hf_token, commit_message="Upload best
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload latest JEPA-TTS weights to Hugging Face")
     parser.add_argument("--lang", type=str, required=True, choices=["arabic", "english"], help="Language model to upload")
+    parser.add_argument("--db", type=str, default=None, choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database folder to upload from")
     parser.add_argument("--token", type=str, default=None, help="Hugging Face Write Token (optional if hf_config.json exists)")
     args = parser.parse_args()
+    
+    # 0. Resolve DB
+    if args.db is None:
+        args.db = "nawar_halabi" if args.lang == "arabic" else "ljspeech"
     
     # 1. Resolve Token
     token = args.token or get_token()
@@ -53,7 +58,7 @@ if __name__ == "__main__":
     
     # 3. Resolve Checkpoint
     from train import get_latest_checkpoint
-    log_dir = "training_logs/arabic/nawar_halabi" if args.lang == "arabic" else "training_logs/english/ljspeech"
+    log_dir = os.path.join("training_logs", args.lang, args.db)
     latest_ckpt, ckpt_type, _ = get_latest_checkpoint(log_dir)
     
     if not latest_ckpt:
