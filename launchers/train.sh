@@ -10,7 +10,7 @@ if [ -z "$ARGS" ]; then
     echo ""
     echo "  Available Arguments:"
     echo "    --lang           [arabic, english]"
-    echo "    --db             [common_voice, nawar_halabi, libritts, ljspeech]"
+    echo "    --db             [common_voice, clartts, nawar_halabi, libritts, ljspeech]"
     echo "    --val            (add this flag to enable validation loops)"
     echo "    --resume         (add this flag to resume from latest checkpoint)"
     echo "    --checkpointnum  (number of epochs between auto-uploads to HF)"
