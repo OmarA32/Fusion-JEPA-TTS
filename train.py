@@ -71,9 +71,8 @@ class HuggingFaceUploadCallback(L.Callback):
 
 class SaveLastCheckpointCallback(L.Callback):
     def on_train_epoch_end(self, trainer, pl_module):
-        if trainer.is_global_zero:
-            ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
-            trainer.save_checkpoint(ckpt_path)
+        ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
+        trainer.save_checkpoint(ckpt_path)
 
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory."""
