@@ -1,32 +1,67 @@
-# Audio-JEPA Arabic TTS
+# Audio-JEPA Text-to-Speech (TTS)
 
-An open-source Text-to-Speech (TTS) pipeline for Arabic, leveraging a modified Joint-Embedding Predictive Architecture (JEPA-T).
+An open-source, dual-language Text-to-Speech (TTS) pipeline leveraging a modified Joint-Embedding Predictive Architecture (JEPA-T). This repository contains the complete infrastructure for training, inference, and cloud synchronization for both English and Arabic audio generation.
 
 ## Features
-- End-to-end Arabic TTS processing utilizing `MohamedRashad/common-voice-18-arabic` from HuggingFace.
-- Multiple Vocoder support (HiFi-GAN, Vocos, BigVGAN).
-- Robust PyTorch Lightning training and inference pipeline.
-- Cross-platform automated environment handling.
+- **Dual-Language End-to-End TTS**: Full support for both Arabic and English phonetic modeling.
+- **Multiple Database Integration**: Natively trains on `nawar_halabi`, `common_voice`, `clartts` (Arabic) and `ljspeech`, `libritts` (English).
+- **Advanced Vocoders**: Uses NVIDIA's [BigVGAN](https://github.com/NVIDIA/BigVGAN) as the default high-fidelity vocoder, with fallback support for Vocos. 
+- **Automated Supercomputer Pipeline**: Includes a fully-automated Kaggle/Colab Jupyter Notebook (`supercomputer_training.ipynb`) designed for distributed multi-GPU (DDP) training.
+- **Cloud Checkpoint Syncing**: Built-in PyTorch Lightning callback automatically pushes updated weights to `KASP-JEPA` Hugging Face repositories seamlessly during training.
 
-## Automated Installation
-No manual virtual environment configuration is needed.
+## Installation & Setup
+
+### Supercomputer / Cloud (Kaggle/Colab)
+For cloud platforms, simply upload and run `supercomputer_training.ipynb`. It automatically handles environment setup, multi-GPU configuration, dataset downloading, and Hugging Face authentication.
+
+### Local Installation
+To run the project locally, execute the setup scripts to automatically securely configure your Python virtual environment and install all dependencies (PyTorch, Lightning, Transformers, BigVGAN).
 
 **Windows:**
-Double-click `setup_env.bat`
+Double-click `launchers/setup_env.bat` or `launchers/setup_env_xpu.bat`
 
 **Linux/Mac:**
-Run `bash setup_env.sh`
+Run `bash launchers/setup_env.sh` or `bash launchers/setup_env_xpu.sh`
 
-This script will automatically create an isolated Python virtual environment (`venv`), securely install build tools, and download all core dependencies (PyTorch, PyTorch Lightning, HuggingFace Datasets, CLIP, timm) seamlessly.
+## Pipeline Usage
 
-## Usage
-Simply execute any of the automated `.bat` or `.sh` scripts to test or train the models. They automatically connect to the internal virtual environment for you.
+All core logic is contained within the root Python files. You can execute them directly, or use the convenient `launchers/` wrapper scripts to automatically hook into your virtual environment.
 
-**Training:**
-- `train_from_scratch_jepa.[bat/sh]`
-- `train_finetune_jepa.[bat/sh]`
+### 1. Training (`train.py`)
+Trains the JEPA-T model. Automatically scales to multiple GPUs using PyTorch Lightning DDP strategy.
+```bash
+python train.py --lang english --db ljspeech --checkpointnum 2
+```
+*Arguments:*
+- `--lang`: `english` or `arabic`
+- `--db`: Dataset to use (must match language)
+- `--resume`: Resumes from the last saved checkpoint
+- `--val`: Enables validation (Note: turning validation off drastically saves disk space)
+- `--checkpointnum`: Syncs `last.ckpt` to Hugging Face every N epochs
 
-**Testing:**
-- `test_one_text_hifigan.[bat/sh]`
-- `test_one_text_vocos.[bat/sh]`
-- `test_one_text_bigvgan.[bat/sh]`
+### 2. Inference (`inference.py`)
+Generates audio from text using the latest trained model weights.
+```bash
+python inference.py --lang english --text "Hello world"
+```
+*Arguments:*
+- `--lang`: Language model to load
+- `--text`: The string of text to synthesize
+- `--index`: Alternative to `--text`. Provide an integer index to grab the corresponding ground-truth transcript from the dataset for testing.
+- `--db`: (Required if using `--index`) The dataset to read from.
+
+### 3. Vocoder Testing (`test_vocoder_ground_truth.py`)
+Extracts raw ground-truth audio from the dataset, converts it to mel-spectrograms, and pushes it through the BigVGAN vocoder to isolate and test the absolute maximum audio quality achievable by the vocoder alone (ignoring the JEPA model).
+```bash
+python test_vocoder_ground_truth.py --lang english --db ljspeech --index 25
+```
+
+### 4. Cloud Synchronization 
+Manually interact with the Hugging Face hub outside of the training loop.
+- `download_from_hf.py`: Downloads the latest pre-trained model weights.
+- `upload_to_hf.py`: Manually pushes local weights to the cloud.
+
+## Repository Structure
+- `data/`: Contains `dataset.py` logic for downloading datasets, tokenizing text, and extracting mel-spectrograms.
+- `launchers/`: Contains `.bat` and `.sh` wrapper scripts for all major operations.
+- `BigVGAN/`: Git Submodule linked directly to NVIDIA's source code for mel-spectrogram extraction and audio reconstruction.
