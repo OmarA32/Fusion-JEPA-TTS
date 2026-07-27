@@ -169,10 +169,10 @@ def main():
 
     # Configure checkpointing to save the best 3 epochs based on validation loss (or latest 3 if val is off)
     checkpoint_callback_best = ModelCheckpoint(
-        monitor="val/total_loss" if args.val else "step",
-        mode="min" if args.val else "max",
+        monitor="val/total_loss" if args.val else None,
+        mode="min",
         every_n_epochs=1,
-        save_top_k=1, # Reduced to 1 to save massive amounts of disk space on Kaggle
+        save_top_k=1 if args.val else 0, # Set to 0 if val is disabled to prevent Lightning path mismatch crash when resuming
         save_last=True, # Always save the absolute latest state as last.ckpt
         filename="best-epoch={epoch:03d}"
     )
