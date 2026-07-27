@@ -154,3 +154,6 @@ output_arabic_test.wav
 
 data/LJSpeech*
 backups/
+
+output*.wav
+restore_notebook.py
