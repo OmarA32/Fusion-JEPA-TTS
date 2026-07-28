@@ -201,7 +201,7 @@ def main():
         accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
         devices="auto",
         strategy=lightning_strategy,
-        precision="bf16-mixed", # ⚡ PERF MIRACLE: 16-bit Mixed Precision for 2x speed and 50% less VRAM!
+        precision="16-mixed", # ⚡ NVIDIA T4 FIX: T4s use Turing architecture which requires standard 16-bit for Tensor Core speedups!
         limit_val_batches=1.0 if args.val else 0.0,
         log_every_n_steps=50,
         gradient_clip_val=1.0,

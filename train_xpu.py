@@ -206,7 +206,7 @@ def main():
             optimizer.zero_grad()
             
             # Forward pass with mixed precision
-            autocast_dtype = torch.float32 if device.type == "cpu" else torch.bfloat16
+            autocast_dtype = torch.float32 if device.type == "cpu" else torch.float16
             with torch.amp.autocast(device_type=device.type, dtype=autocast_dtype):
                 with torch.no_grad():
                     ema_x = ema_model.forward_ema_encoder(mel_specs, text_ids)
