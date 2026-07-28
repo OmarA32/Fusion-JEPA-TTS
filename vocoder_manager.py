@@ -18,6 +18,16 @@ class VocoderManager:
             if 'BigVGAN' not in sys.path:
                 sys.path.append('BigVGAN')
             from bigvgan import BigVGAN
+            
+            # Monkeypatch huggingface-hub strict kwargs bug for older models
+            original_from_pretrained = BigVGAN._from_pretrained
+            @classmethod
+            def _from_pretrained_patched(cls, *args, **kwargs):
+                kwargs.pop('proxies', None)
+                kwargs.pop('resume_download', None)
+                return original_from_pretrained.__func__(cls, *args, **kwargs)
+            BigVGAN._from_pretrained = _from_pretrained_patched
+            
             self.model = BigVGAN.from_pretrained('nvidia/bigvgan_v2_44khz_128band_512x', use_cuda_kernel=False).to(self.device)
             self.model.eval()
         else:

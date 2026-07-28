@@ -171,9 +171,6 @@ def main():
 
     print("Initializing Lightning JEPAT Model...")
     model = JEPATLightning(learning_rate=1e-4, language=args.lang)
-    
-    # ⚡ PERF MIRACLE: Just-In-Time compilation of the neural network
-    model = torch.compile(model)
 
     # Configure checkpointing to save the best 3 epochs based on validation loss (or latest 3 if val is off)
     if args.val:
