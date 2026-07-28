@@ -49,7 +49,7 @@ if __name__ == "__main__":
         sys.exit(1)
         
     # 2. Resolve Repo
-    repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
+    repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
     
     # 3. Resolve Checkpoint
     from train import get_latest_checkpoint

@@ -191,7 +191,7 @@ def main():
     callbacks_list = [checkpoint_callback, TQDMProgressBar(refresh_rate=1)]
     
     if args.checkpointnum > 0:
-        repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
+        repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
         callbacks_list.append(HuggingFaceUploadCallback(every_n_epochs=args.checkpointnum, repo_id=repo_id, log_dir=log_dir))
 
     print("Configuring Lightning Trainer...")

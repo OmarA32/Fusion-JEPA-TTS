@@ -17,7 +17,7 @@ def main():
     args = parser.parse_args()
 
     token = get_token()
-    repo_id = "KASP-JEPA/Project-Arabic" if args.lang == "arabic" else "KASP-JEPA/Project-English"
+    repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
     local_dir = os.path.join("training_logs", args.lang)
 
     print(f"Connecting to {repo_id}...")
