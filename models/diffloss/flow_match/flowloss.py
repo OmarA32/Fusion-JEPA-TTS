@@ -37,7 +37,7 @@ class FlowMatchLoss(nn.Module):
             model_kwargs = dict(c=z, cfg_scale=cfg_scale)
             sample_fn = self.net.forward_with_cfg
         else:
-            noise = torch.randn(z.shape[0], self.in_channels).cuda()
+            noise = torch.randn(z.shape[0], self.in_channels).to(z.device)
             model_kwargs = dict(c=z)
             sample_fn = self.net.forward
 

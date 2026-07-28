@@ -11,7 +11,7 @@ from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
-def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos"):
+def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos", save_mel=False, mel_gt=None, cfg_scale=3.0):
     if torch.cuda.is_available():
         device = "cuda"
     elif hasattr(torch, "xpu") and torch.xpu.is_available():
@@ -126,11 +126,39 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         generated_mel = model.sample_tokens(
             bsz=1,
             num_iter=64, 
-            cfg_scale=3.0,
+            cfg_scale=cfg_scale,
             labels=text_input
         )
     
     print(f"Raw Generated Mel Shape: {generated_mel.shape}")
+    
+    if save_mel:
+        try:
+            import matplotlib.pyplot as plt
+            gen_mel_np = generated_mel.squeeze().cpu().numpy()
+            mel_path = output_path.replace('.wav', '_mel.png')
+            
+            if mel_gt is not None:
+                gt_mel_np = mel_gt.squeeze().cpu().numpy()
+                fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+                axes[0].imshow(gt_mel_np, origin='lower', aspect='auto', cmap='viridis')
+                axes[0].set_title('Ground Truth Mel')
+                axes[1].imshow(gen_mel_np, origin='lower', aspect='auto', cmap='viridis')
+                axes[1].set_title('Generated Mel')
+                plt.tight_layout()
+                plt.savefig(mel_path)
+                plt.close()
+            else:
+                plt.figure(figsize=(10, 5))
+                plt.imshow(gen_mel_np, origin='lower', aspect='auto', cmap='viridis')
+                plt.title('Generated Mel')
+                plt.tight_layout()
+                plt.savefig(mel_path)
+                plt.close()
+            print(f"Saved mel spectrogram to {mel_path}")
+        except ImportError:
+            print("WARNING: matplotlib is not installed. Cannot save mel spectrogram image. Please run: pip install matplotlib")
+
     
     mel_for_vocoder = generated_mel.squeeze(1)
     print(f"Vocoder Input Mel Shape: {mel_for_vocoder.shape}")
@@ -162,6 +190,8 @@ if __name__ == "__main__":
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
     parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
     parser.add_argument('--vocoder', type=str, default='bigvgan', choices=['vocos', 'bigvgan'], help="Vocoder to use.")
+    parser.add_argument('--cfg-scale', type=float, default=3.0, help="Classifier-Free Guidance scale (1.0 disables it).")
+    parser.add_argument('--save-mel', action='store_true', help="Save an image of the mel spectrogram(s)")
     args = parser.parse_args()
 
     valid_dbs = {
@@ -183,11 +213,19 @@ if __name__ == "__main__":
             sys.exit(1)
             
         # Extract original text directly from HuggingFace dataset object
-        item = test_dataset.dataset[args.index]
-        args.text = item.get('sentence', item.get('text', ''))
+        item_raw = test_dataset.dataset[args.index]
+        args.text = item_raw.get('sentence', item_raw.get('text', ''))
         print(f"\n[Index {args.index} Text]: {args.text}\n")
+        
+        mel_gt = None
+        if args.save_mel:
+            print("Fetching ground truth mel spectrogram...")
+            item_processed = test_dataset[args.index]
+            mel_gt = item_processed['mel_tgt']
         
         os.makedirs("test_results", exist_ok=True)
         args.output = f"test_results/inference_index_{args.index}.wav"
+    else:
+        mel_gt = None
     
-    generate_audio(args.text, args.lang, args.db, args.output, args.vocoder)
+    generate_audio(args.text, args.lang, args.db, args.output, args.vocoder, args.save_mel, mel_gt, args.cfg_scale)

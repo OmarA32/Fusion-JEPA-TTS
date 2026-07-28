@@ -9,9 +9,9 @@ from text.english_phonetiser import (
     english_to_tokens
 )
 
-vowels = ['aa', 'AA', 'uu0', 'uu1', 'UU0', 'UU1', 'ii0', 'ii1',
-          'II0', 'II1', 'a', 'A', 'u0', 'u1', 'U0', 'U1', 'i0', 'i1',
-          'I0', 'I1']
+vowels = ['aa', 'AA', 'uu', 'uu0', 'uu1', 'UU', 'UU0', 'UU1', 'ii', 'ii0', 'ii1',
+          'II', 'II0', 'II1', 'a', 'A', 'u', 'u0', 'u1', 'U', 'U0', 'U1', 'i', 'i0', 'i1',
+          'I', 'I0', 'I1']
 
 vowel_map = {
     'aa': 'aa', 'AA': 'aa',

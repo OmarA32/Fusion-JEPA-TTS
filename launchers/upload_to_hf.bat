@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0\.."
 setlocal
 
 :: If no arguments are provided, switch to interactive mode

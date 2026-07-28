@@ -147,6 +147,10 @@ def main():
     ).to(device)
     
     ema_model = copy.deepcopy(model).to(device)
+    
+    # ⚡ PERF MIRACLE: Just-In-Time compilation
+    model = torch.compile(model)
+    ema_model = torch.compile(ema_model)
     for param in ema_model.parameters():
         param.requires_grad = False
         
