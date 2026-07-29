@@ -156,4 +156,6 @@ data/LJSpeech*
 backups/
 
 output*.wav
+*_output.wav
+*_output_mel.png
 restore_notebook.py
