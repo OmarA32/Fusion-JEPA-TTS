@@ -13,7 +13,7 @@ def get_token():
 
 def main():
     parser = argparse.ArgumentParser(description="Download latest weights from Hugging Face")
-    parser.add_argument("--lang", type=str, choices=["arabic", "english"], required=True, help="Language model to download")
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language model to download")
     args = parser.parse_args()
 
     token = get_token()

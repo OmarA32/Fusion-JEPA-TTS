@@ -1,14 +1,19 @@
 #!/bin/bash
-# Hugging Face Weights Downloader Launcher
-# Usage: ./download_hf.sh [arabic|english]
-# Example: ./download_hf.sh arabic
+cd "$(dirname "$0")/.."
+[ -f "venv/bin/activate" ] && source venv/bin/activate
 
-if [ -z "$1" ]; then
-    echo "Error: You must specify a language."
-    echo "Usage: ./download_hf.sh [arabic|english]"
-    exit 1
+ARGS="$@"
+
+if [ -z "$ARGS" ]; then
+    echo "========================================================="
+    echo "  No arguments provided."
+    echo ""
+    echo "  Available Arguments:"
+    echo "    --lang           [arabic, english] (Optional: Language of the model to download)"
+    echo ""
+    echo "  Defaults: --lang arabic"
+    echo "========================================================="
+    read -p "Enter arguments (or press Enter to use defaults): " ARGS
 fi
 
-LANG=$1
-
-python download_from_hf.py --lang "$LANG"
+python download_from_hf.py $ARGS

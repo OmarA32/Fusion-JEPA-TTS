@@ -1,14 +1,20 @@
 @echo off
-:: Hugging Face Weights Downloader Launcher
-:: Usage: download_hf.bat [arabic|english]
-:: Example: download_hf.bat arabic
+cd /d "%~dp0\.."
+if exist "venv\Scripts\activate.bat" call venv\Scripts\activate.bat
 
-if "%~1"=="" (
-    echo Error: You must specify a language.
-    echo Usage: download_hf.bat [arabic^|english]
-    exit /b 1
+set "args=%*"
+
+if "%args%"=="" (
+    echo =========================================================
+    echo   No arguments provided.
+    echo.
+    echo   Available Arguments:
+    echo     --lang           [arabic, english] (Optional: Language of the model to download)
+    echo.
+    echo   Defaults: --lang arabic
+    echo =========================================================
+    set /p args="Enter arguments (or press Enter to use defaults): "
 )
 
-set LANG=%~1
-
-python download_from_hf.py --lang %LANG%
+python download_from_hf.py %args%
+pause

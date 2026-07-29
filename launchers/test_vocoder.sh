@@ -9,13 +9,14 @@ if [ -z "$ARGS" ]; then
     echo "  No arguments provided."
     echo ""
     echo "  Available Arguments:"
-    echo "    --lang    [arabic, english]"
-    echo "    --db      [common_voice, nawar_halabi, libritts, ljspeech]"
-    echo "    --index   [any number, e.g., 15] (Selects the audio clip)"
+    echo "    --lang           [arabic, english] (Optional: Language of the model)"
+    echo "    --db             [common_voice, nawar_halabi, ljspeech, clartts, libritts] (Optional: Dataset database)"
+    echo "    --index          (Optional: Index of the test dataset item to synthesize)"
+    echo "    --vocoder        [vocos, bigvgan] (Optional: Vocoder to use)"
     echo ""
-    echo "  Defaults: --lang arabic --db common_voice --index 10"
+    echo "  Defaults: --lang arabic --db nawar_halabi"
     echo "========================================================="
-    read -p "Enter arguments (e.g., --lang english) or press Enter for defaults: " ARGS
+    read -p "Enter arguments (or press Enter to use defaults): " ARGS
 fi
 
 python test_vocoder_ground_truth.py $ARGS

@@ -9,15 +9,15 @@ if "%args%"=="" (
     echo   No arguments provided.
     echo.
     echo   Available Arguments:
-    echo     --lang           [arabic, english]
-    echo     --db             [common_voice, clartts, nawar_halabi, libritts, ljspeech]
-    echo     --val            (add this flag to enable validation loops)
-    echo     --resume         (add this flag to resume from latest checkpoint)
-    echo     --checkpointnum  (number of epochs between auto-uploads to HF)
+    echo     --lang           [arabic, english] (Optional: Language of the model)
+    echo     --db             [common_voice, nawar_halabi, ljspeech, clartts, libritts] (Optional: Dataset database)
+    echo     --val            (Optional: Flag to enable validation loops)
+    echo     --resume         (Optional: Flag to resume from the latest checkpoint)
+    echo     --checkpointnum  (Optional: Number of epochs between auto-uploads to HF)
     echo.
     echo   Defaults: --lang arabic --db nawar_halabi
     echo =========================================================
-    set /p args="Enter arguments (e.g., --lang english --resume) or press Enter for defaults: "
+    set /p args="Enter arguments (or press Enter to use defaults): "
 )
 
 python train_xpu.py %args%

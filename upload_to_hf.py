@@ -38,7 +38,7 @@ def upload_model(checkpoint_path, repo_id, hf_token, commit_message="Upload best
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload latest JEPA-TTS weights to Hugging Face")
-    parser.add_argument("--lang", type=str, required=True, choices=["arabic", "english"], help="Language model to upload")
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language model to upload")
     parser.add_argument("--token", type=str, default=None, help="Hugging Face Write Token (optional if hf_config.json exists)")
     args = parser.parse_args()
     
