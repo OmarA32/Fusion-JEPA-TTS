@@ -60,4 +60,15 @@ if __name__ == "__main__":
         print(f"[ERROR] No checkpoints found in {log_dir} to upload!")
         sys.exit(1)
         
-    upload_model(latest_ckpt, repo_id, token)
+    epoch_str = f"Epoch {max_epoch}"
+    if max_epoch == 99999999: # last.ckpt indicator
+        try:
+            import torch
+            ckpt = torch.load(latest_ckpt, map_location="cpu", weights_only=False)
+            real_epoch = ckpt.get("epoch", "Latest")
+            epoch_str = f"Epoch {real_epoch}"
+        except:
+            epoch_str = "Latest Epoch"
+            
+    commit_message = f"Manual upload from {epoch_str}"
+    upload_model(latest_ckpt, repo_id, token, commit_message=commit_message)

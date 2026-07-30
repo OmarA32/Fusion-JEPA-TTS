@@ -184,7 +184,8 @@ notebook = {
                 "api.upload_folder(\n",
                 "    folder_path=\"training_logs\",\n",
                 "    repo_id=repo_id,\n",
-                "    repo_type=\"model\"\n",
+                "    repo_type=\"model\",\n",
+                "    commit_message=\"Bulk upload of all training epochs\"\n",
                 ")\n",
                 "print(\"Upload complete! All epochs are now safely stored in Hugging Face.\")"
             ]
