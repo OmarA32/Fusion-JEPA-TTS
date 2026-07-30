@@ -126,6 +126,7 @@ def main():
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
     parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
     parser.add_argument("--val", action="store_true", help="Enable validation loop during training.")
+    parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
     args = parser.parse_args()
     
     valid_dbs = {
@@ -148,7 +149,7 @@ def main():
     
     # Robust Multi-GPU batch scaling
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    batch_size = 8 # Hardcoded to 8 to prevent OOM on 15GB GPUs
+    batch_size = 12 # Increased batch size for newer architecture iteration
     print(f"Detected {num_gpus} GPUs. Using batch size {batch_size}.")
 
     train_loader = DataLoader(
@@ -171,6 +172,17 @@ def main():
 
     print("Initializing Lightning JEPAT Model...")
     model = JEPATLightning(learning_rate=1e-4, language=args.lang)
+
+    if args.freeze_jepa:
+        print("Freezing JEPA (ViT) backbone! Only the Diffusion MLP will be trained.")
+        for name, param in model.model.named_parameters():
+            if not name.startswith("diffloss"):
+                param.requires_grad = False
+                
+    # Freezing the EMA model in Lightning (if it exists as a separate attribute)
+    if hasattr(model, "ema_model"):
+        for param in model.ema_model.parameters():
+            param.requires_grad = False
 
     # Configure checkpointing to save the best 3 epochs based on validation loss (or latest 3 if val is off)
     if args.val:

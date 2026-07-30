@@ -26,7 +26,8 @@ notebook = {
             "source": [
                 "!git clone https://github.com/OmarA32/Audio-JEPA-Arabic-TTS.git\n",
                 "%cd Audio-JEPA-Arabic-TTS\n",
-                "!git checkout prototype/v2.1.0"
+                "!git checkout prototype/v6.0.0\n",
+                "!git submodule update --init --recursive"
             ]
         },
         {
@@ -67,7 +68,12 @@ notebook = {
             "metadata": {},
             "source": [
                 "### 4A. Run Training (From Scratch)\\n",
-                "This deletes any existing weights and trains from scratch at Epoch 0. The dataset (`MohamedRashad/common-voice-18-arabic`) is public and will download automatically during the first epoch."
+                "This deletes any existing weights and trains from scratch at Epoch 0. The dataset (`MohamedRashad/common-voice-18-arabic`) is public and will download automatically during the first epoch.\n",
+                "You can customize training with these optional arguments:\n",
+                "- `--lang english` (to train the english dataset)\n",
+                "- `--db ljspeech` (to switch database to LJSpeech or LibriTTS)\n",
+                "- `--val` (to enable the validation loop for graphing)\n",
+                "- `--freeze_jepa` (to freeze the ViT backbone and only train the Diffusion MLP)"
             ]
         },
         {
@@ -83,8 +89,9 @@ notebook = {
             "cell_type": "markdown",
             "metadata": {},
             "source": [
-                "### 4B. Resume Training / Fine-Tune\\n",
-                "If you downloaded your saved weights from Hugging Face into the `training_logs` folder, run this cell instead! It will seamlessly resume training from the latest epoch."
+                "### 4B. Resume Training / Fine-Tune\n",
+                "If you downloaded your saved weights from Hugging Face into the `training_logs` folder, run this cell instead! It will seamlessly resume training from the latest epoch.\n",
+                "You can also pass arguments here e.g., `!python train.py --resume --val --freeze_jepa`"
             ]
         },
         {

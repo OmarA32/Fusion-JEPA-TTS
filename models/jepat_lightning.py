@@ -72,4 +72,12 @@ class JEPATLightning(L.LightningModule):
         # Filter parameters that require gradients
         params = [p for p in self.model.parameters() if p.requires_grad]
         optimizer = torch.optim.AdamW(params, lr=self.learning_rate, betas=(0.9, 0.95), weight_decay=0.02)
-        return optimizer
+        
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100000, eta_min=1e-6)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step"
+            }
+        }

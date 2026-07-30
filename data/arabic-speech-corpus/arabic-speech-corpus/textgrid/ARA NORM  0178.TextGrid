@@ -1,0 +1,144 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 2.72 
+tiers? <exists> 
+size = 2 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "phones" 
+        xmin = 0 
+        xmax = 2.72 
+        intervals: size = 26 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.083235213560871 
+            text = "sil" 
+        intervals [2]:
+            xmin = 0.083235213560871 
+            xmax = 0.2113387038390445 
+            text = "w" 
+        intervals [3]:
+            xmin = 0.2113387038390445 
+            xmax = 0.2864927514689063 
+            text = "a" 
+        intervals [4]:
+            xmin = 0.2864927514689063 
+            xmax = 0.368 
+            text = "^" 
+        intervals [5]:
+            xmin = 0.368 
+            xmax = 0.438 
+            text = "a" 
+        intervals [6]:
+            xmin = 0.438 
+            xmax = 0.5 
+            text = "m" 
+        intervals [7]:
+            xmin = 0.5 
+            xmax = 0.692 
+            text = "aa'" 
+        intervals [8]:
+            xmin = 0.692 
+            xmax = 0.7562055491555424 
+            text = "n" 
+        intervals [9]:
+            xmin = 0.7562055491555424 
+            xmax = 0.8382513557225765 
+            text = "i0" 
+        intervals [10]:
+            xmin = 0.8382513557225765 
+            xmax = 0.901389504804139 
+            text = "y" 
+        intervals [11]:
+            xmin = 0.901389504804139 
+            xmax = 0.9782515989710431 
+            text = "a" 
+        intervals [12]:
+            xmin = 0.9782515989710431 
+            xmax = 1.0756102515824548 
+            text = "z" 
+        intervals [13]:
+            xmin = 1.0756102515824548 
+            xmax = 1.1370999269159783 
+            text = "a" 
+        intervals [14]:
+            xmin = 1.1370999269159783 
+            xmax = 1.3010723944720402 
+            text = "xx" 
+        intervals [15]:
+            xmin = 1.3010723944720402 
+            xmax = 1.5111621185282447 
+            text = "AA'" 
+        intervals [16]:
+            xmin = 1.5111621185282447 
+            xmax = 1.5982724919174027 
+            text = "t" 
+        intervals [17]:
+            xmin = 1.5982724919174027 
+            xmax = 1.659762167250926 
+            text = "i1" 
+        intervals [18]:
+            xmin = 1.659762167250926 
+            xmax = 1.8818082170664268 
+            text = "ll" 
+        intervals [19]:
+            xmin = 1.8818082170664268 
+            xmax = 1.948422032011077 
+            text = "i0" 
+        intervals [20]:
+            xmin = 1.948422032011077 
+            xmax = 2.189256593734043 
+            text = "$$" 
+        intervals [21]:
+            xmin = 2.189256593734043 
+            xmax = 2.2831991532713705 
+            text = "u0'" 
+        intervals [22]:
+            xmin = 2.2831991532713705 
+            xmax = 2.332732502845597 
+            text = "h" 
+        intervals [23]:
+            xmin = 2.332732502845597 
+            xmax = 2.4369233416051785 
+            text = "u0" 
+        intervals [24]:
+            xmin = 2.4369233416051785 
+            xmax = 2.5001210634757443 
+            text = "b" 
+        intervals [25]:
+            xmin = 2.5001210634757443 
+            xmax = 2.6026038556982827 
+            text = "i0" 
+        intervals [26]:
+            xmin = 2.6026038556982827 
+            xmax = 2.72 
+            text = "sil" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "words" 
+        xmin = 0 
+        xmax = 2.72 
+        intervals: size = 5 
+        intervals [1]:
+            xmin = 0.0 
+            xmax = 0.0832352135609 
+            text = "sil" 
+        intervals [2]:
+            xmin = 0.0832352135609 
+            xmax = 0.978251598971 
+            text = "wa^amaAniya" 
+        intervals [3]:
+            xmin = 0.978251598971 
+            xmax = 1.65976216725 
+            text = "zax~aAtK" 
+        intervals [4]:
+            xmin = 1.65976216725 
+            xmax = 2.6026038557 
+            text = "lil$~uhubi" 
+        intervals [5]:
+            xmin = 2.6026038557 
+            xmax = 2.72 
+            text = "sil" 

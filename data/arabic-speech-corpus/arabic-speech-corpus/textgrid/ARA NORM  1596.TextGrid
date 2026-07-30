@@ -1,0 +1,260 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0.0
+xmax = 6.75
+tiers? <exists>
+size = 2
+item []:
+	item [1]:
+		class = "IntervalTier"
+		name = "phones"
+		xmin = 0.0
+		xmax = 6.75
+		intervals: size = 49
+			intervals [1]:
+				xmin = 0.0
+				xmax = 0.09
+				text = "sil"
+			intervals [2]:
+				xmin = 0.09
+				xmax = 0.25
+				text = "y"
+			intervals [3]:
+				xmin = 0.25
+				xmax = 0.38
+				text = "AA'" 
+			intervals [4]:
+				xmin = 0.38
+				xmax = 0.53
+				text = "S"
+			intervals [5]:
+				xmin = 0.53
+				xmax = 0.61
+				text = "b"
+			intervals [6]:
+				xmin = 0.61
+				xmax = 0.68
+				text = "a"
+			intervals [7]:
+				xmin = 0.68
+				xmax = 0.71
+				text = "r"
+			intervals [8]:
+				xmin = 0.71
+				xmax = 0.88
+				text = "a"
+			intervals [9]:
+				xmin = 0.88
+				xmax = 1.44
+				text = "sil"
+			intervals [10]:
+				xmin = 1.44
+				xmax = 1.53
+				text = "w"
+			intervals [11]:
+				xmin = 1.53
+				xmax = 1.59
+				text = "a"
+			intervals [12]:
+				xmin = 1.59
+				xmax = 1.66
+				text = "t"
+			intervals [13]:
+				xmin = 1.66
+				xmax = 1.72
+				text = "a"
+			intervals [14]:
+				xmin = 1.72
+				xmax = 1.82
+				text = "y"
+			intervals [15]:
+				xmin = 1.82
+				xmax = 1.95
+				text = "AA'" 
+			intervals [16]:
+				xmin = 1.95
+				xmax = 2.17
+				text = "SS"
+			intervals [17]:
+				xmin = 2.17
+				xmax = 2.25
+				text = "A"
+			intervals [18]:
+				xmin = 2.25
+				xmax = 2.29
+				text = "r"
+			intervals [19]:
+				xmin = 2.29
+				xmax = 2.45
+				text = "a"
+			intervals [20]:
+				xmin = 2.45
+				xmax = 3.04
+				text = "sil"
+			intervals [21]:
+				xmin = 3.04
+				xmax = 3.14
+				text = "w"
+			intervals [22]:
+				xmin = 3.14
+				xmax = 3.18
+				text = "a"
+			intervals [23]:
+				xmin = 3.18
+				xmax = 3.27
+				text = "t"
+			intervals [24]:
+				xmin = 3.27
+				xmax = 3.35
+				text = "u0"
+			intervals [25]:
+				xmin = 3.35
+				xmax = 3.46
+				text = "y"
+			intervals [26]:
+				xmin = 3.46
+				xmax = 3.67
+				text = "AA'" 
+			intervals [27]:
+				xmin = 3.67
+				xmax = 3.79
+				text = "S"
+			intervals [28]:
+				xmin = 3.79
+				xmax = 3.88
+				text = "A"
+			intervals [29]:
+				xmin = 3.88
+				xmax = 3.94
+				text = "y"
+			intervals [30]:
+				xmin = 3.94
+				xmax = 4.03
+				text = "u1"
+			intervals [31]:
+				xmin = 4.03
+				xmax = 4.19
+				text = "n"
+			intervals [32]:
+				xmin = 4.19
+				xmax = 4.59
+				text = "sil"
+			intervals [33]:
+				xmin = 4.59
+				xmax = 4.72
+				text = "w"
+			intervals [34]:
+				xmin = 4.72
+				xmax = 4.76
+				text = "a"
+			intervals [35]:
+				xmin = 4.76
+				xmax = 4.9
+				text = "s"
+			intervals [36]:
+				xmin = 4.9
+				xmax = 4.93
+				text = "a'" 
+			intervals [37]:
+				xmin = 4.93
+				xmax = 5.2
+				text = "yy"
+			intervals [38]:
+				xmin = 5.2
+				xmax = 5.29
+				text = "u1"
+			intervals [39]:
+				xmin = 5.29
+				xmax = 5.42
+				text = "n"
+			intervals [40]:
+				xmin = 5.42
+				xmax = 5.77
+				text = "sil"
+			intervals [41]:
+				xmin = 5.77
+				xmax = 5.81
+				text = "t"
+			intervals [42]:
+				xmin = 5.81
+				xmax = 5.87
+				text = "A"
+			intervals [43]:
+				xmin = 5.87
+				xmax = 5.97
+				text = "S"
+			intervals [44]:
+				xmin = 5.97
+				xmax = 6.05
+				text = "A'" 
+			intervals [45]:
+				xmin = 6.05
+				xmax = 6.29
+				text = "rr"
+			intervals [46]:
+				xmin = 6.29
+				xmax = 6.42
+				text = "u0"
+			intervals [47]:
+				xmin = 6.42
+				xmax = 6.5
+				text = "y"
+			intervals [48]:
+				xmin = 6.5
+				xmax = 6.66
+				text = "a"
+			intervals [49]:
+				xmin = 6.66
+				xmax = 6.75
+				text = "sil"
+	item [2]:
+		class = "IntervalTier"
+		name = "words"
+		xmin = 0.0
+		xmax = 6.75
+		intervals: size = 11
+			intervals [1]:
+				xmin = 0.0
+				xmax = 0.09
+				text = "sil"
+			intervals [2]:
+				xmin = 0.09
+				xmax = 0.88
+				text = "yASobara"
+			intervals [3]:
+				xmin = 0.88
+				xmax = 1.44
+				text = "sil"
+			intervals [4]:
+				xmin = 1.44
+				xmax = 2.45
+				text = "watayAS~ara"
+			intervals [5]:
+				xmin = 2.45
+				xmax = 3.04
+				text = "sil"
+			intervals [6]:
+				xmin = 3.04
+				xmax = 4.19
+				text = "watuyASayN"
+			intervals [7]:
+				xmin = 4.19
+				xmax = 4.59
+				text = "sil"
+			intervals [8]:
+				xmin = 4.59
+				xmax = 5.42
+				text = "wasay~N"
+			intervals [9]:
+				xmin = 5.42
+				xmax = 5.77
+				text = "sil"
+			intervals [10]:
+				xmin = 5.77
+				xmax = 6.66
+				text = "taSar~uyA"
+			intervals [11]:
+				xmin = 6.66
+				xmax = 6.75
+				text = "sil"

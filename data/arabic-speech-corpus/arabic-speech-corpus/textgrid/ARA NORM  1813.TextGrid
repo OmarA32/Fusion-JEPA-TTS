@@ -1,0 +1,116 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0.0
+xmax = 2.99
+tiers? <exists>
+size = 2
+item []:
+	item [1]:
+		class = "IntervalTier"
+		name = "phones"
+		xmin = 0.0
+		xmax = 2.99
+		intervals: size = 19
+			intervals [1]:
+				xmin = 0.0
+				xmax = 0.08
+				text = "sil"
+			intervals [2]:
+				xmin = 0.08
+				xmax = 0.13
+				text = "q"
+			intervals [3]:
+				xmin = 0.13
+				xmax = 0.18
+				text = "U0"
+			intervals [4]:
+				xmin = 0.18
+				xmax = 0.45
+				text = "yy"
+			intervals [5]:
+				xmin = 0.45
+				xmax = 0.64
+				text = "ii0'" 
+			intervals [6]:
+				xmin = 0.64
+				xmax = 0.72
+				text = "m"
+			intervals [7]:
+				xmin = 0.72
+				xmax = 0.83
+				text = "u1"
+			intervals [8]:
+				xmin = 0.83
+				xmax = 0.98
+				text = "n"
+			intervals [9]:
+				xmin = 0.98
+				xmax = 1.76
+				text = "sil"
+			intervals [10]:
+				xmin = 1.76
+				xmax = 1.84
+				text = "w"
+			intervals [11]:
+				xmin = 1.84
+				xmax = 1.88
+				text = "A"
+			intervals [12]:
+				xmin = 1.88
+				xmax = 2.01
+				text = "q"
+			intervals [13]:
+				xmin = 2.01
+				xmax = 2.27
+				text = "II0"
+			intervals [14]:
+				xmin = 2.27
+				xmax = 2.36
+				text = "y"
+			intervals [15]:
+				xmin = 2.36
+				xmax = 2.56
+				text = "uu0'" 
+			intervals [16]:
+				xmin = 2.56
+				xmax = 2.62
+				text = "m"
+			intervals [17]:
+				xmin = 2.62
+				xmax = 2.72
+				text = "u1"
+			intervals [18]:
+				xmin = 2.72
+				xmax = 2.91
+				text = "n"
+			intervals [19]:
+				xmin = 2.91
+				xmax = 2.99
+				text = "sil"
+	item [2]:
+		class = "IntervalTier"
+		name = "words"
+		xmin = 0.0
+		xmax = 2.99
+		intervals: size = 5
+			intervals [1]:
+				xmin = 0.0
+				xmax = 0.08
+				text = "sil"
+			intervals [2]:
+				xmin = 0.08
+				xmax = 0.98
+				text = "quy~ymN"
+			intervals [3]:
+				xmin = 0.98
+				xmax = 1.76
+				text = "sil"
+			intervals [4]:
+				xmin = 1.76
+				xmax = 2.91
+				text = "waqiy~wmN"
+			intervals [5]:
+				xmin = 2.91
+				xmax = 2.99
+				text = "sil"

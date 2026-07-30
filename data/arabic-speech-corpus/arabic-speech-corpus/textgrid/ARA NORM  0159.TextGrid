@@ -1,0 +1,272 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 5.114 
+tiers? <exists> 
+size = 2 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "phones" 
+        xmin = 0 
+        xmax = 5.114 
+        intervals: size = 53 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.09868962585385122 
+            text = "sil" 
+        intervals [2]:
+            xmin = 0.09868962585385122 
+            xmax = 0.19181960736951198 
+            text = "f" 
+        intervals [3]:
+            xmin = 0.19181960736951198 
+            xmax = 0.297795103576988 
+            text = "A'" 
+        intervals [4]:
+            xmin = 0.297795103576988 
+            xmax = 0.3748681917278797 
+            text = "D" 
+        intervals [5]:
+            xmin = 0.3748681917278797 
+            xmax = 0.4294616291680946 
+            text = "l" 
+        intervals [6]:
+            xmin = 0.4294616291680946 
+            xmax = 0.517 
+            text = "a" 
+        intervals [7]:
+            xmin = 0.517 
+            xmax = 0.6060874561805547 
+            text = "n" 
+        intervals [8]:
+            xmin = 0.6060874561805547 
+            xmax = 0.711 
+            text = "E" 
+        intervals [9]:
+            xmin = 0.711 
+            xmax = 0.778 
+            text = "a'" 
+        intervals [10]:
+            xmin = 0.778 
+            xmax = 0.8758432647086756 
+            text = "n" 
+        intervals [11]:
+            xmin = 0.8758432647086756 
+            xmax = 0.9432822168407058 
+            text = "t" 
+        intervals [12]:
+            xmin = 0.9432822168407058 
+            xmax = 1.0267780623375051 
+            text = "a" 
+        intervals [13]:
+            xmin = 1.0267780623375051 
+            xmax = 1.1488104519097502 
+            text = "f" 
+        intervals [14]:
+            xmin = 1.1488104519097502 
+            xmax = 1.2483631907713186 
+            text = "s" 
+        intervals [15]:
+            xmin = 1.2483631907713186 
+            xmax = 1.375 
+            text = "ii0'" 
+        intervals [16]:
+            xmin = 1.375 
+            xmax = 1.437834532475594 
+            text = "r" 
+        intervals [17]:
+            xmin = 1.437834532475594 
+            xmax = 1.5566555433748852 
+            text = "i0" 
+        intervals [18]:
+            xmin = 1.5566555433748852 
+            xmax = 1.6722651756012228 
+            text = "b" 
+        intervals [19]:
+            xmin = 1.6722651756012228 
+            xmax = 1.7814520504816527 
+            text = "a'" 
+        intervals [20]:
+            xmin = 1.7814520504816527 
+            xmax = 1.8906389253620826 
+            text = "E" 
+        intervals [21]:
+            xmin = 1.8906389253620826 
+            xmax = 1.9452323628022974 
+            text = "D" 
+        intervals [22]:
+            xmin = 1.9452323628022974 
+            xmax = 1.990191664223651 
+            text = "I0" 
+        intervals [23]:
+            xmin = 1.990191664223651 
+            xmax = 2.080110267066358 
+            text = "l" 
+        intervals [24]:
+            xmin = 2.080110267066358 
+            xmax = 2.1764516272549725 
+            text = "k" 
+        intervals [25]:
+            xmin = 2.1764516272549725 
+            xmax = 2.295272638154264 
+            text = "a" 
+        intervals [26]:
+            xmin = 2.295272638154264 
+            xmax = 2.3498660755944787 
+            text = "l" 
+        intervals [27]:
+            xmin = 2.3498660755944787 
+            xmax = 2.46868708649377 
+            text = "i0" 
+        intervals [28]:
+            xmin = 2.46868708649377 
+            xmax = 2.545760174644662 
+            text = "m" 
+        intervals [29]:
+            xmin = 2.545760174644662 
+            xmax = 2.719174622984168 
+            text = "aa'" 
+        intervals [30]:
+            xmin = 2.719174622984168 
+            xmax = 2.805881847153921 
+            text = "t" 
+        intervals [31]:
+            xmin = 2.805881847153921 
+            xmax = 2.8990118286695816 
+            text = "i0" 
+        intervals [32]:
+            xmin = 2.8990118286695816 
+            xmax = 3.004987324877058 
+            text = "w" 
+        intervals [33]:
+            xmin = 3.004987324877058 
+            xmax = 3.0660035196631803 
+            text = "a" 
+        intervals [34]:
+            xmin = 3.0660035196631803 
+            xmax = 3.181613151889518 
+            text = "H" 
+        intervals [35]:
+            xmin = 3.181613151889518 
+            xmax = 3.2586862400404097 
+            text = "i0'" 
+        intervals [36]:
+            xmin = 3.2586862400404097 
+            xmax = 3.396775522977424 
+            text = "f" 
+        intervals [37]:
+            xmin = 3.396775522977424 
+            xmax = 3.5316534272414843 
+            text = "Z" 
+        intervals [38]:
+            xmin = 3.5316534272414843 
+            xmax = 3.6183606514112374 
+            text = "I0" 
+        intervals [39]:
+            xmin = 3.6183606514112374 
+            xmax = 3.733970283637575 
+            text = "b" 
+        intervals [40]:
+            xmin = 3.733970283637575 
+            xmax = 3.7981978570966515 
+            text = "a'" 
+        intervals [41]:
+            xmin = 3.7981978570966515 
+            xmax = 3.9041733533041274 
+            text = "E" 
+        intervals [42]:
+            xmin = 3.9041733533041274 
+            xmax = 3.978035062782065 
+            text = "D" 
+        intervals [43]:
+            xmin = 3.978035062782065 
+            xmax = 4.035839878895234 
+            text = "I0" 
+        intervals [44]:
+            xmin = 4.035839878895234 
+            xmax = 4.0904333163354485 
+            text = "l" 
+        intervals [45]:
+            xmin = 4.0904333163354485 
+            xmax = 4.161083647140433 
+            text = "<" 
+        intervals [46]:
+            xmin = 4.161083647140433 
+            xmax = 4.212465705907694 
+            text = "a" 
+        intervals [47]:
+            xmin = 4.212465705907694 
+            xmax = 4.308807066096309 
+            text = "H" 
+        intervals [48]:
+            xmin = 4.308807066096309 
+            xmax = 4.523969437184214 
+            text = "aa" 
+        intervals [49]:
+            xmin = 4.523969437184214 
+            xmax = 4.623522176045783 
+            text = "d" 
+        intervals [50]:
+            xmin = 4.623522176045783 
+            xmax = 4.7551887016368894 
+            text = "ii0'" 
+        intervals [51]:
+            xmin = 4.7551887016368894 
+            xmax = 4.851530061825504 
+            text = "^" 
+        intervals [52]:
+            xmin = 4.851530061825504 
+            xmax = 5.008887616800242 
+            text = "i0" 
+        intervals [53]:
+            xmin = 5.008887616800242 
+            xmax = 5.114 
+            text = "sil" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "words" 
+        xmin = 0 
+        xmax = 5.114 
+        intervals: size = 10 
+        intervals [1]:
+            xmin = 0.0 
+            xmax = 0.0986896258539 
+            text = "sil" 
+        intervals [2]:
+            xmin = 0.0986896258539 
+            xmax = 0.606087456181 
+            text = "faDolAF" 
+        intervals [3]:
+            xmin = 0.606087456181 
+            xmax = 0.875843264709 
+            text = "Eano" 
+        intervals [4]:
+            xmin = 0.875843264709 
+            xmax = 1.55665554337 
+            text = "tafosiyri" 
+        intervals [5]:
+            xmin = 1.55665554337 
+            xmax = 1.99019166422 
+            text = "baEoDi" 
+        intervals [6]:
+            xmin = 1.99019166422 
+            xmax = 2.89901182867 
+            text = "AlokalimaAti" 
+        intervals [7]:
+            xmin = 2.89901182867 
+            xmax = 3.61836065141 
+            text = "waHifoZi" 
+        intervals [8]:
+            xmin = 3.61836065141 
+            xmax = 4.0358398789 
+            text = "baEoDi" 
+        intervals [9]:
+            xmin = 4.0358398789 
+            xmax = 5.0088876168 
+            text = "Alo>aHaAdiy^i" 
+        intervals [10]:
+            xmin = 5.0088876168 
+            xmax = 5.114 
+            text = "sil" 

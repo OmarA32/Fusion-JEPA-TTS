@@ -10,6 +10,11 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 import torch
+try:
+    import intel_extension_for_pytorch as ipex
+except ImportError:
+    pass
+
 from torch.utils.data import DataLoader
 from data.dataset import JEPADataset, jepa_collate_fn
 from models.jepat import JEPAT_base
@@ -83,6 +88,8 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database to use.")
+    parser.add_argument("--val", action="store_true", help="Run validation step during training.")
+    parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
     args = parser.parse_args()
     
     valid_dbs = {
@@ -117,7 +124,7 @@ def main():
     if hasattr(torch, "xpu") and device.type == "xpu":
         num_gpus = torch.xpu.device_count()
         
-    batch_size = 8 # Hardcoded to 8 to prevent OOM
+    batch_size = 14 # Optimized batch size to hit exactly ~930 batches
     print(f"Detected {num_gpus} GPUs on {device.type.upper()}. Using batch size {batch_size}.")
 
     train_loader = DataLoader(
@@ -150,6 +157,13 @@ def main():
     for param in ema_model.parameters():
         param.requires_grad = False
         
+    if args.freeze_jepa:
+        print("Freezing JEPA (ViT) backbone! Only the Diffusion MLP will be trained.")
+        for name, param in model.named_parameters():
+            if not name.startswith("diffloss"):
+                param.requires_grad = False
+                
+
     if num_gpus > 1:
         print(f"Wrapping models in DataParallel across {num_gpus} GPUs...")
         model = torch.nn.DataParallel(model)
@@ -157,7 +171,13 @@ def main():
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=1e-4, betas=(0.9, 0.95), weight_decay=0.02)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100000, eta_min=1e-6)
     
+    if device.type == "xpu" and "ipex" in sys.modules:
+        print("Compiling model graph with IPEX for Float16 natively on XPU...")
+        model, optimizer = ipex.optimize(model, optimizer=optimizer, dtype=torch.float16)
+        ema_model = ipex.optimize(ema_model, dtype=torch.float16)
+
     # Setup mixed precision for XPU/CUDA
     scaler = torch.amp.GradScaler(device=device.type) if device.type in ["cuda", "xpu"] else None
     
@@ -226,6 +246,8 @@ def main():
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
                 
+            scheduler.step()
+            
             # Update EMA model
             with torch.no_grad():
                 for ema_v, model_v in zip(ema_model.parameters(), model.parameters()):
@@ -237,23 +259,26 @@ def main():
                 print(f"Epoch {epoch} | Batch {batch_idx}/{len(train_loader)} | Total Loss: {total_loss.item():.4f} | Diff: {diffloss.item():.4f} | JEPA: {jepa_loss.item():.4f} | Time/batch: {elapsed:.2f}s", flush=True)
                 
         # --- VALIDATION LOOP ---
-        print(f"Running Validation for Epoch {epoch}...")
-        model.eval()
-        val_losses = []
-        with torch.no_grad():
-            for val_batch in val_loader:
-                mel_specs, text_ids, _ = val_batch
-                mel_specs = mel_specs.to(device)
-                text_ids = text_ids.to(device)
-                
-                # Run validation in native FP32 to bypass PyTorch .eval() mixed precision bugs
-                ema_x = ema_model.forward_ema_encoder(mel_specs, text_ids)
-                diffloss, jepa_loss = model(mel_specs, text_ids, ema_x=ema_x)
-                val_loss = diffloss + jepa_loss
-                val_losses.append(val_loss.item())
-        
-        avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0
-        print(f"Validation Loss: {avg_val_loss:.4f}")
+        if args.val:
+            print(f"Running Validation for Epoch {epoch}...")
+            model.eval()
+            val_losses = []
+            with torch.no_grad():
+                for val_batch in val_loader:
+                    mel_specs, text_ids, _ = val_batch
+                    mel_specs = mel_specs.to(device)
+                    text_ids = text_ids.to(device)
+                    
+                    # Run validation in native FP32 to bypass PyTorch .eval() mixed precision bugs
+                    ema_x = ema_model.forward_ema_encoder(mel_specs, text_ids)
+                    diffloss, jepa_loss = model(mel_specs, text_ids, ema_x=ema_x)
+                    val_loss = diffloss + jepa_loss
+                    val_losses.append(val_loss.item())
+            
+            avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0
+            print(f"Validation Loss: {avg_val_loss:.4f}")
+        else:
+            avg_val_loss = 0.0 # Default if validation is skipped
         
         # --- LIGHTNING CHECKPOINT SYNTHESIZER ---
         # Synthesize a PyTorch Lightning Checkpoint dictionary

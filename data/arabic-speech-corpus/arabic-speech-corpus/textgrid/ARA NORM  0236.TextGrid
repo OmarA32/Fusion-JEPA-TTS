@@ -1,0 +1,108 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 1.6 
+tiers? <exists> 
+size = 2 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "phones" 
+        xmin = 0 
+        xmax = 1.6 
+        intervals: size = 18 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.1028501392174917 
+            text = "sil" 
+        intervals [2]:
+            xmin = 0.1028501392174917 
+            xmax = 0.19478323224065147 
+            text = "w" 
+        intervals [3]:
+            xmin = 0.19478323224065147 
+            xmax = 0.26 
+            text = "a" 
+        intervals [4]:
+            xmin = 0.26 
+            xmax = 0.31987252274757383 
+            text = "n" 
+        intervals [5]:
+            xmin = 0.31987252274757383 
+            xmax = 0.383097819091484 
+            text = "A'" 
+        intervals [6]:
+            xmin = 0.383097819091484 
+            xmax = 0.5179257584491317 
+            text = "T" 
+        intervals [7]:
+            xmin = 0.5179257584491317 
+            xmax = 0.5916528687887183 
+            text = "l" 
+        intervals [8]:
+            xmin = 0.5916528687887183 
+            xmax = 0.6549510639849923 
+            text = "u0" 
+        intervals [9]:
+            xmin = 0.6549510639849923 
+            xmax = 0.7355427833772649 
+            text = "b" 
+        intervals [10]:
+            xmin = 0.7355427833772649 
+            xmax = 0.890519989881355 
+            text = "u0" 
+        intervals [11]:
+            xmin = 0.890519989881355 
+            xmax = 0.9332211532647117 
+            text = "r" 
+        intervals [12]:
+            xmin = 0.9332211532647117 
+            xmax = 1.025656612823978 
+            text = "i0'" 
+        intervals [13]:
+            xmin = 1.025656612823978 
+            xmax = 1.1388439002277726 
+            text = "z" 
+        intervals [14]:
+            xmin = 1.1388439002277726 
+            xmax = 1.2391624297407613 
+            text = "q" 
+        intervals [15]:
+            xmin = 1.2391624297407613 
+            xmax = 1.3200434568551194 
+            text = "A" 
+        intervals [16]:
+            xmin = 1.3200434568551194 
+            xmax = 1.3753841447148738 
+            text = "n" 
+        intervals [17]:
+            xmin = 1.3753841447148738 
+            xmax = 1.4901167280928056 
+            text = "a" 
+        intervals [18]:
+            xmin = 1.4901167280928056 
+            xmax = 1.6 
+            text = "sil" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "words" 
+        xmin = 0 
+        xmax = 1.6 
+        intervals: size = 4 
+        intervals [1]:
+            xmin = 0.0 
+            xmax = 0.102850139217 
+            text = "sil" 
+        intervals [2]:
+            xmin = 0.102850139217 
+            xmax = 0.890519989881 
+            text = "wanaTolubu" 
+        intervals [3]:
+            xmin = 0.890519989881 
+            xmax = 1.49011672809 
+            text = "rizoqanaA" 
+        intervals [4]:
+            xmin = 1.49011672809 
+            xmax = 1.6 
+            text = "sil" 
