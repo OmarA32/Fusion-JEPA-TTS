@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # 3. Resolve Checkpoint
     from train import get_latest_checkpoint
     log_dir = os.path.join("training_logs", args.lang)
-    latest_ckpt, ckpt_type, _ = get_latest_checkpoint(log_dir)
+    latest_ckpt, ckpt_type, max_epoch = get_latest_checkpoint(log_dir)
     
     if not latest_ckpt:
         print(f"[ERROR] No checkpoints found in {log_dir} to upload!")
