@@ -41,11 +41,27 @@ def main():
         match = re.search(r'epoch=(\d+)', filename)
         return int(match.group(1)) if match else -1
 
-    # Prefer last.ckpt for resuming
-    if any(f.endswith("last.ckpt") for f in ckpt_files):
-        latest_file = next(f for f in ckpt_files if f.endswith("last.ckpt"))
-    else:
-        latest_file = max(ckpt_files, key=extract_epoch)
+    # 1. Parse the LATEST commit message to see if it specifies an epoch
+    try:
+        latest_commit = api.list_repo_commits(repo_id=repo_id)[0]
+        commit_msg = latest_commit.title
+        match = re.search(r'(?i)epoch\s*(\d+)', commit_msg)
+        if match:
+            target_epoch = match.group(1)
+            # Find a file that matches this exact epoch
+            target_files = [f for f in ckpt_files if f"epoch={target_epoch}" in f]
+            if target_files:
+                latest_file = target_files[0] # Prefer the first match (e.g. best-epoch=129)
+                print(f"Found explicit epoch {target_epoch} in latest commit message!")
+    except Exception as e:
+        print(f"Could not parse commit history: {e}")
+        
+    # 2. If the commit parsing didn't find a target, fallback to last.ckpt or highest epoch
+    if 'latest_file' not in locals():
+        if any(f.endswith("last.ckpt") for f in ckpt_files):
+            latest_file = next(f for f in ckpt_files if f.endswith("last.ckpt"))
+        else:
+            latest_file = max(ckpt_files, key=extract_epoch)
 
     print(f"Found latest weights: {latest_file}")
     
