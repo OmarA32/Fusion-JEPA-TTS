@@ -226,9 +226,11 @@ def main():
     if args.resume:
         found_path, ckpt_type, found_epoch = get_latest_checkpoint(log_dir)
         if found_path and os.path.exists(found_path):
-            if ckpt_type == "pt":
-                print(f"Upgrading raw PyTorch weights ({found_path}) to a Lightning Checkpoint...")
-                checkpoint = torch.load(found_path, map_location="cpu")
+            print(f"Inspecting checkpoint payload: {found_path}")
+            checkpoint = torch.load(found_path, map_location="cpu")
+            
+            if "pytorch-lightning_version" not in checkpoint:
+                print(f"Detected raw PyTorch weights! Upgrading to Lightning Checkpoint format...")
                 
                 # Synthesize a PyTorch Lightning Checkpoint
                 lightning_ckpt = {
@@ -252,7 +254,7 @@ def main():
                 ckpt_path = temp_ckpt_path
                 print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
             else:
-                print(f"Resuming natively from Lightning checkpoint: {found_path}")
+                print(f"Resuming natively from valid Lightning checkpoint: {found_path}")
                 ckpt_path = found_path
         else:
             print("No checkpoint found to resume from. Starting from scratch.")
