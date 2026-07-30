@@ -159,3 +159,4 @@ output*.wav
 *_output.wav
 *_output_mel.png
 restore_notebook.py
+hf_config.json
