@@ -6,6 +6,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 import argparse
 import torch
+torch.set_float32_matmul_precision('high') # ⚡ MAXIMIZES speed on A100s and RTX 30/40 series via TF32
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint, TQDMProgressBar
 from torch.utils.data import DataLoader
