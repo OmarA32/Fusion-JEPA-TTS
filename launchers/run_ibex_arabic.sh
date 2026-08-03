@@ -11,8 +11,8 @@
 
 #SBATCH --job-name=jepa_tts_ar
 #SBATCH --partition=batch
-#SBATCH --gres=gpu:a100:2         # Request 2x NVIDIA A100 GPUs for massive parallel training
-#SBATCH --cpus-per-task=16        # Request 16 CPU cores (8 per GPU) for fast data loading
+#SBATCH --gres=gpu:a100:1         # Request 1x NVIDIA A100 GPU
+#SBATCH --cpus-per-task=8         # Request 8 CPU cores for fast data loading
 #SBATCH --mem=64G                 # Request 64GB of RAM
 #SBATCH --time=24:00:00           # 24-hour strict time limit
 #SBATCH --output=training_logs/ibex_output_%j.txt
