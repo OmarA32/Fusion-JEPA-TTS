@@ -128,7 +128,19 @@ def main():
     parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
     parser.add_argument("--val", action="store_true", help="Enable validation loop during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
+    parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
+    parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
+    
+    if args.hf_token:
+        with open("hf_config.json", "w") as f:
+            json.dump({"HF_TOKEN": args.hf_token}, f)
+        print("Successfully saved HF_TOKEN to hf_config.json!")
+
+    if args.download_latest:
+        print(f"Downloading latest {args.lang} checkpoint from Hugging Face...")
+        import subprocess
+        subprocess.run([sys.executable, "download_from_hf.py", "--lang", args.lang], check=False)
     
     valid_dbs = {
         "arabic": ["common_voice", "nawar_halabi"],

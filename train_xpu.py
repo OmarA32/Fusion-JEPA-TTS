@@ -4,6 +4,7 @@ import copy
 import time
 import re
 import argparse
+import json
 import lightning as L
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -90,7 +91,19 @@ def main():
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database to use.")
     parser.add_argument("--val", action="store_true", help="Run validation step during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
+    parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
+    parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
+    
+    if args.hf_token:
+        with open("hf_config.json", "w") as f:
+            json.dump({"HF_TOKEN": args.hf_token}, f)
+        print("Successfully saved HF_TOKEN to hf_config.json!")
+
+    if args.download_latest:
+        print(f"Downloading latest {args.lang} checkpoint from Hugging Face...")
+        import subprocess
+        subprocess.run([sys.executable, "download_from_hf.py", "--lang", args.lang], check=False)
     
     valid_dbs = {
         "arabic": ["common_voice", "nawar_halabi", "clartts"],
