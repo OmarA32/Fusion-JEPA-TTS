@@ -36,7 +36,10 @@ module load machine_learning/2024.01
 # 3. Print GPU Status
 nvidia-smi
 
-# 4. Install requirements dynamically just in case
+# 4. Create and activate a 100% isolated local virtual environment
+echo "Creating isolated local environment to prevent user conflicts..."
+python -m venv ibex_env
+source ibex_env/bin/activate
 pip install -r requirements.txt
 
 # 5. Launch PyTorch Lightning Training
