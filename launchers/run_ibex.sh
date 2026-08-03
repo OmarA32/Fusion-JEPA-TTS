@@ -45,6 +45,6 @@ pip install -r requirements.txt
 # 5. Launch PyTorch Lightning Training
 # We use the new flags to automatically download the latest checkpoint and inject your HF Token!
 echo "Booting up the PyTorch Lightning Trainer..."
-python train.py --resume --download_latest --lang english --db ljspeech --hf_token "$1" --checkpointnum 5
+python train.py --resume --download_latest --lang english --db ljspeech --hf_token "$1" --checkpointnum 20
 
 echo "Job Completed!"
