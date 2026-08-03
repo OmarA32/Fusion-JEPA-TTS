@@ -38,7 +38,7 @@ nvidia-smi
 
 # 4. Create and activate a 100% isolated local virtual environment
 echo "Creating isolated local environment to prevent user conflicts..."
-python -m venv ibex_tts_env
+python -m venv ibex_tts_env --system-site-packages
 source ibex_tts_env/bin/activate
 pip install -r requirements.txt
 
