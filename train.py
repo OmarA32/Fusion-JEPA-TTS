@@ -286,7 +286,9 @@ def main():
                     ckpt_path = None # Set to None so Lightning starts fresh optimizers safely
                     
                     # SAFEGUARD: Archive the stripped checkpoint so it doesn't infinitely loop on future resumes
-                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{os.path.basename(found_path)}")
+                    # We must strip the word 'epoch' out of the filename so get_latest_checkpoint() ignores it!
+                    safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
+                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
                     print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
                     try:
                         import shutil
