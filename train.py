@@ -266,8 +266,15 @@ def main():
                 ckpt_path = temp_ckpt_path
                 print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
             else:
-                print(f"Resuming natively from valid Lightning checkpoint: {found_path}")
-                ckpt_path = found_path
+                if "optimizer_states" not in checkpoint:
+                    print("Lightning checkpoint is missing optimizer states (likely stripped for HF upload). Loading weights only!")
+                    # Load weights manually to avoid crashing Lightning's strict strict resume
+                    # We use strict=False in case the checkpoint has EMA models but the code doesn't
+                    model.load_state_dict(checkpoint["state_dict"], strict=False)
+                    ckpt_path = None # Set to None so Lightning starts fresh optimizers safely
+                else:
+                    print(f"Resuming natively from valid Lightning checkpoint: {found_path}")
+                    ckpt_path = found_path
         else:
             print("No checkpoint found to resume from. Starting from scratch.")
 
