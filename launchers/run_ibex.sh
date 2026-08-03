@@ -11,7 +11,7 @@
 
 #SBATCH --job-name=jepa_tts
 #SBATCH --partition=batch
-#SBATCH --gres=gpu:a100:1         # Request 1x NVIDIA A100 GPU
+#SBATCH --gres=gpu:1              # Request 1x generic GPU (Any available architecture)
 #SBATCH --cpus-per-task=8         # Request 8 CPU cores for fast data loading
 #SBATCH --mem=64G                 # Request 64GB of RAM
 #SBATCH --time=24:00:00           # 24-hour strict time limit
