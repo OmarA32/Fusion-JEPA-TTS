@@ -6,7 +6,7 @@
 #   1. SSH into the GPU login node: ssh -XY username@glogin.ibex.kaust.edu.sa
 #   2. Clone the repo (WITH SUBMODULES!): git clone --recursive https://github.com/OmarA32/Audio-JEPA-Arabic-TTS.git
 #   3. cd Audio-JEPA-Arabic-TTS
-#   4. Submit this script to the queue: sbatch launchers/run_ibex.sh
+#   4. Submit this script to the queue: sbatch launchers/run_ibex.sh "YOUR_HF_TOKEN_HERE"
 # ==============================================================================
 
 #SBATCH --job-name=jepa_tts
@@ -42,6 +42,6 @@ pip install -r requirements.txt
 # 5. Launch PyTorch Lightning Training
 # We use the new flags to automatically download the latest checkpoint and inject your HF Token!
 echo "Booting up the PyTorch Lightning Trainer..."
-python train.py --resume --download_latest --lang english --db ljspeech --hf_token "YOUR_HF_TOKEN_HERE" --checkpointnum 5
+python train.py --resume --download_latest --lang english --db ljspeech --hf_token "$1" --checkpointnum 5
 
 echo "Job Completed!"
