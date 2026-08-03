@@ -272,6 +272,15 @@ def main():
                     # We use strict=False in case the checkpoint has EMA models but the code doesn't
                     model.load_state_dict(checkpoint["state_dict"], strict=False)
                     ckpt_path = None # Set to None so Lightning starts fresh optimizers safely
+                    
+                    # SAFEGUARD: Archive the stripped checkpoint so it doesn't infinitely loop on future resumes
+                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{os.path.basename(found_path)}")
+                    print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
+                    try:
+                        import shutil
+                        shutil.move(found_path, archived_path)
+                    except Exception as e:
+                        print(f"Warning: Could not archive {found_path}: {e}")
                 else:
                     print(f"Resuming natively from valid Lightning checkpoint: {found_path}")
                     ckpt_path = found_path
