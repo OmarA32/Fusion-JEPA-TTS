@@ -19,6 +19,18 @@ class VocoderManager:
                 sys.path.append('BigVGAN')
             from bigvgan import BigVGAN
             
+            # Monkeypatch: huggingface-hub removed 'proxies' and 'resume_download' from kwargs, 
+            # but BigVGAN._from_pretrained still strictly requires them. We inject them if missing.
+            original_from_pretrained = BigVGAN._from_pretrained
+            @classmethod
+            def _from_pretrained_patched(cls, *args, **kwargs):
+                if 'proxies' not in kwargs:
+                    kwargs['proxies'] = None
+                if 'resume_download' not in kwargs:
+                    kwargs['resume_download'] = False
+                return original_from_pretrained.__func__(cls, *args, **kwargs)
+            BigVGAN._from_pretrained = _from_pretrained_patched
+            
             self.model = BigVGAN.from_pretrained('nvidia/bigvgan_v2_44khz_128band_512x', use_cuda_kernel=False).to(self.device)
             self.model.eval()
         else:
