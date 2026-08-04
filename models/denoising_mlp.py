@@ -25,15 +25,6 @@ class TimestepEmbedder(nn.Module):
 
     @staticmethod
     def timestep_embedding(t, dim, max_period=10000):
-        """
-        Create sinusoidal timestep embeddings.
-        :param t: a 1-D Tensor of N indices, one per batch element.
-                          These may be fractional.
-        :param dim: the dimension of the output.
-        :param max_period: controls the minimum frequency of the embeddings.
-        :return: an (N, D) Tensor of positional embeddings.
-        """
-        # https://github.com/openai/glide-text2im/blob/main/glide_text2im/nn.py
         half = dim // 2
         freqs = torch.exp(
             -math.log(max_period) * torch.arange(start=0,
@@ -52,37 +43,50 @@ class TimestepEmbedder(nn.Module):
         return t_emb
 
 
-class ResBlock(nn.Module):
+class DiTBlock(nn.Module):
     """
-    A residual block that can optionally change the number of channels.
-    :param channels: the number of input channels.
+    A DiT block with Self-Attention and AdaLN modulation.
     """
 
     def __init__(
         self,
-        channels
+        channels,
+        num_heads=8,
     ):
         super().__init__()
         self.channels = channels
+        self.num_heads = num_heads
 
-        self.in_ln = nn.LayerNorm(channels, eps=1e-6)
+        self.norm1 = nn.LayerNorm(channels, eps=1e-6, elementwise_affine=False)
+        self.attn = nn.MultiheadAttention(channels, num_heads, batch_first=True)
+
+        self.norm2 = nn.LayerNorm(channels, eps=1e-6, elementwise_affine=False)
         self.mlp = nn.Sequential(
-            nn.Linear(channels, channels, bias=True),
-            nn.SiLU(),
-            nn.Linear(channels, channels, bias=True),
+            nn.Linear(channels, channels * 4, bias=True),
+            nn.GELU(),
+            nn.Linear(channels * 4, channels, bias=True),
         )
 
         self.adaLN_modulation = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(channels, 3 * channels, bias=True)
+            nn.Linear(channels, 6 * channels, bias=True)
         )
 
     def forward(self, x, y):
-        shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(
-            y).chunk(3, dim=-1)
-        h = modulate(self.in_ln(x), shift_mlp, scale_mlp)
-        h = self.mlp(h)
-        return x + gate_mlp * h
+        # x: [B, L, C], y: [B, C]
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(y).chunk(6, dim=-1)
+        
+        # Self Attention
+        h = modulate(self.norm1(x), shift_msa.unsqueeze(1), scale_msa.unsqueeze(1))
+        attn_out, _ = self.attn(h, h, h)
+        x = x + gate_msa.unsqueeze(1) * attn_out
+
+        # MLP
+        h = modulate(self.norm2(x), shift_mlp.unsqueeze(1), scale_mlp.unsqueeze(1))
+        mlp_out = self.mlp(h)
+        x = x + gate_mlp.unsqueeze(1) * mlp_out
+        
+        return x
 
 
 class FinalLayer(nn.Module):
@@ -102,19 +106,14 @@ class FinalLayer(nn.Module):
 
     def forward(self, x, c):
         shift, scale = self.adaLN_modulation(c).chunk(2, dim=-1)
-        x = modulate(self.norm_final(x), shift, scale)
+        x = modulate(self.norm_final(x), shift.unsqueeze(1), scale.unsqueeze(1))
         x = self.linear(x)
         return x
 
 
-class SimpleMLPAdaLN(nn.Module):
+class SpatialDiT(nn.Module):
     """
-    The MLP for Diffusion Loss.
-    :param in_channels: channels in the input Tensor.
-    :param model_channels: base channel count for the model.
-    :param out_channels: channels in the output Tensor.
-    :param z_channels: channels in the condition.
-    :param num_res_blocks: number of residual blocks per downsample.
+    The Spatial DiT for Diffusion Loss.
     """
 
     def __init__(
@@ -136,12 +135,15 @@ class SimpleMLPAdaLN(nn.Module):
 
         self.time_embed = TimestepEmbedder(model_channels)
         self.cond_embed = nn.Linear(z_channels, model_channels)
+        
+        # 256 is the max sequence length (128//16 * 512//16 = 8 * 32 = 256)
+        self.pos_embed = nn.Parameter(torch.zeros(1, 256, model_channels))
 
         self.input_proj = nn.Linear(in_channels, model_channels)
 
         res_blocks = []
         for i in range(num_res_blocks):
-            res_blocks.append(ResBlock(
+            res_blocks.append(DiTBlock(
                 model_channels,
             ))
 
@@ -162,6 +164,8 @@ class SimpleMLPAdaLN(nn.Module):
         nn.init.normal_(self.time_embed.mlp[0].weight, std=0.02)
         nn.init.normal_(self.time_embed.mlp[2].weight, std=0.02)
 
+        torch.nn.init.normal_(self.pos_embed, std=.02)
+
         # Zero-out adaLN modulation layers
         for block in self.res_blocks:
             nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
@@ -174,18 +178,17 @@ class SimpleMLPAdaLN(nn.Module):
         nn.init.constant_(self.final_layer.linear.bias, 0)
 
     def forward(self, x, t, c):
-        """
-        Apply the model to an input batch.
-        :param x: an [N x C x ...] Tensor of inputs.
-        :param t: a 1-D batch of timesteps.
-        :param c: conditioning from AR transformer.
-        :return: an [N x C x ...] Tensor of outputs.
-        """
         x = self.input_proj(x)
-        t = self.time_embed(t)
-        c = self.cond_embed(c)
-
-        y = t + c
+        
+        # Add positional embedding
+        x = x + self.pos_embed[:, :x.size(1), :]
+        
+        t_emb = self.time_embed(t) # [B, model_channels]
+        
+        c_seq = self.cond_embed(c) # [B, L, model_channels]
+        x = x + c_seq
+        
+        y = t_emb # [B, model_channels]
 
         if self.grad_checkpointing and not torch.jit.is_scripting(): # type: ignore
             for block in self.res_blocks:
@@ -200,8 +203,8 @@ class SimpleMLPAdaLN(nn.Module):
         half = x[: len(x) // 2]
         combined = torch.cat([half, half], dim=0)
         model_out = self.forward(combined, t, c)
-        eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
-        cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
-        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
-        eps = torch.cat([half_eps, half_eps], dim=0)
-        return torch.cat([eps, rest], dim=1)
+        
+        cond_eps, uncond_eps = torch.split(model_out, len(model_out) // 2, dim=0)
+        eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+        eps = torch.cat([eps, eps], dim=0)
+        return eps

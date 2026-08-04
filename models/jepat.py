@@ -381,10 +381,9 @@ class JEPAT(nn.Module):
 
     def diffusion_loss(self, z, target, mask):
         bsz, seq_len, _ = target.shape
-        target = target.reshape(
-            bsz * seq_len, -1).repeat(self.diffusion_batch_mul, 1)
-        z = z.reshape(bsz*seq_len, -1).repeat(self.diffusion_batch_mul, 1)
-        mask = mask.reshape(bsz*seq_len).repeat(self.diffusion_batch_mul)
+        target = target.repeat(self.diffusion_batch_mul, 1, 1)
+        z = z.repeat(self.diffusion_batch_mul, 1, 1)
+        mask = mask.repeat(self.diffusion_batch_mul, 1)
         loss = self.diffloss(z=z, target=target, mask=mask)
         return loss
 
@@ -585,8 +584,6 @@ class JEPAT(nn.Module):
             if not cfg_scale == 1.0:
                 mask_to_pred = torch.cat([mask_to_pred, mask_to_pred], dim=0)
 
-            # sample token latents for this step
-            z = z[mask_to_pred.nonzero(as_tuple=True)]
             # cfg_scale schedule follow Muse
             if cfg_schedule == "linear":
                 cfg_iter = 1 + (cfg_scale - 1) * (self.seq_len -
@@ -595,15 +592,18 @@ class JEPAT(nn.Module):
                 cfg_iter = cfg_scale
             else:
                 raise NotImplementedError
-            sampled_token_latent = self.diffloss.sample(
+                
+            # Sample token latents for the FULL sequence using SpatialDiT
+            sampled_tokens = self.diffloss.sample(
                 z, temperature=temperature, cfg_scale=cfg_iter, time_shifting_factor=time_shifting_factor)
+                
             if not cfg_scale == 1.0:
-                sampled_token_latent, _ = sampled_token_latent.chunk(
+                sampled_tokens, _ = sampled_tokens.chunk(
                     2, dim=0)  # Remove null class samples
                 mask_to_pred, _ = mask_to_pred.chunk(2, dim=0)
 
             cur_tokens[mask_to_pred.nonzero(
-                as_tuple=True)] = sampled_token_latent
+                as_tuple=True)] = sampled_tokens[mask_to_pred.nonzero(as_tuple=True)]
             tokens = cur_tokens.clone()
 
         # unpatchify

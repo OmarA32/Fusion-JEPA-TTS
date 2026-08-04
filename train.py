@@ -278,26 +278,20 @@ def main():
                 ckpt_path = temp_ckpt_path
                 print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
             else:
-                if "optimizer_states" not in checkpoint:
-                    print("Lightning checkpoint is missing optimizer states (likely stripped for HF upload). Loading weights only!")
-                    # Load weights manually to avoid crashing Lightning's strict strict resume
-                    # We use strict=False in case the checkpoint has EMA models but the code doesn't
-                    model.load_state_dict(checkpoint["state_dict"], strict=False)
-                    ckpt_path = None # Set to None so Lightning starts fresh optimizers safely
-                    
-                    # SAFEGUARD: Archive the stripped checkpoint so it doesn't infinitely loop on future resumes
-                    # We must strip the word 'epoch' out of the filename so get_latest_checkpoint() ignores it!
-                    safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
-                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
-                    print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
-                    try:
-                        import shutil
-                        shutil.move(found_path, archived_path)
-                    except Exception as e:
-                        print(f"Warning: Could not archive {found_path}: {e}")
-                else:
-                    print(f"Resuming natively from valid Lightning checkpoint: {found_path}")
-                    ckpt_path = found_path
+                print("Loading Lightning checkpoint weights manually with strict=False to support DiT upgrade!")
+                model.load_state_dict(checkpoint["state_dict"], strict=False)
+                ckpt_path = None # Set to None so Lightning starts fresh optimizers for the new DiT
+                
+                # SAFEGUARD: Archive the checkpoint so it doesn't infinitely loop on future resumes
+                # We must strip the word 'epoch' out of the filename so get_latest_checkpoint() ignores it!
+                safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
+                archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
+                print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
+                try:
+                    import shutil
+                    shutil.move(found_path, archived_path)
+                except Exception as e:
+                    print(f"Warning: Could not archive {found_path}: {e}")
         else:
             print("No checkpoint found to resume from. Starting from scratch.")
 

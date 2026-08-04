@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from models.denoising_mlp import SimpleMLPAdaLN
+from models.denoising_mlp import SpatialDiT
 
 from .gaussian_diffusion import create_diffusion
 
@@ -12,7 +12,7 @@ class GaussDiffLoss(nn.Module):
     def __init__(self, target_channels, z_channels, depth, width, num_sampling_steps, grad_checkpointing=False):
         super(GaussDiffLoss, self).__init__()
         self.in_channels = target_channels
-        self.net = SimpleMLPAdaLN(
+        self.net = SpatialDiT(
             in_channels=target_channels,
             model_channels=width,
             out_channels=target_channels * 2,  # for vlb loss

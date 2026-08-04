@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from models.denoising_mlp import SimpleMLPAdaLN
+from models.denoising_mlp import SpatialDiT
 
 from .flow_match import ODE, training_losses
 
@@ -12,7 +12,7 @@ class FlowMatchLoss(nn.Module):
     def __init__(self, target_channels, z_channels, depth, width, num_sampling_steps, grad_checkpointing=False):
         super(FlowMatchLoss, self).__init__()
         self.in_channels = target_channels
-        self.net = SimpleMLPAdaLN(
+        self.net = SpatialDiT(
             in_channels=target_channels,
             model_channels=width,
             out_channels=target_channels,
@@ -31,13 +31,14 @@ class FlowMatchLoss(nn.Module):
 
     def sample(self, z, time_shifting_factor=1.0, cfg_scale=1.0, **kwargs):
         # diffusion loss sampling
+        bsz, seq_len, _ = z.shape
         if not cfg_scale == 1.0:
-            noise = torch.randn(z.shape[0] // 2, self.in_channels).to(z.device)
+            noise = torch.randn(bsz // 2, seq_len, self.in_channels).to(z.device)
             noise = torch.cat([noise, noise], dim=0)
             model_kwargs = dict(c=z, cfg_scale=cfg_scale)
             sample_fn = self.net.forward_with_cfg
         else:
-            noise = torch.randn(z.shape[0], self.in_channels).to(z.device)
+            noise = torch.randn(bsz, seq_len, self.in_channels).to(z.device)
             model_kwargs = dict(c=z)
             sample_fn = self.net.forward
 

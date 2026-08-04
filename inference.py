@@ -7,18 +7,23 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 import torchaudio
 import argparse
+try:
+    import intel_extension_for_pytorch as ipex
+except ImportError:
+    pass
+
 from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
 def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos", save_mel=False, mel_gt=None, cfg_scale=3.0):
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif hasattr(torch, "xpu") and torch.xpu.is_available():
-        device = "xpu"
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        device = torch.device("xpu")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
     else:
-        device = "cpu"
-    print(f"Using device: {device}")
+        device = torch.device("cpu")
+    print(f"Using natively accelerated PyTorch device: {device}")
 
     print("Initializing JEPA-T Model...")
     model = JEPAT_base(
@@ -91,7 +96,10 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
             for k, v in state_dict.items():
                 if k.startswith("model."):
                     model_dict[k.replace("model.", "", 1)] = v
-            model.load_state_dict(model_dict)
+            try:
+                model.load_state_dict(model_dict, strict=False)
+            except Exception as e:
+                print(f"Warning during state_dict load: {e}")
     else:
         print(f"WARNING: No checkpoint found! Generating with untrained weights.")
         
