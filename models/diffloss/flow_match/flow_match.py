@@ -49,7 +49,7 @@ def training_losses(model, x1: th.Tensor, model_kwargs=None):
 
     model_output = model(xt, t, **model_kwargs)
 
-    loss = ((model_output - ut) ** 2).mean(dim=list(range(1, ut.ndim)))
+    loss = ((model_output - ut) ** 2).mean(dim=-1)
 
     return loss
 
