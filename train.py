@@ -164,14 +164,14 @@ def main():
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     
     # Dynamically scale batch size based on GPU Hardware to maximize VRAM
-    batch_size = 12 # Safe fallback for 12GB-16GB GPUs
+    batch_size = 8 # Safe fallback for 12GB-16GB GPUs (down from 12 for SpatialDiT)
     if num_gpus > 0:
         gpu_name = torch.cuda.get_device_name(0).lower()
         if "a100" in gpu_name:
-            batch_size = 48 # A100s (40GB/80GB) have massive headroom
+            batch_size = 32 # A100s (40GB/80GB) scaled down from 48 for SpatialDiT
             print(f"🚀 Detected NVIDIA A100 GPU! Supercharging batch size to {batch_size}!")
         elif "v100" in gpu_name or "rtx 3090" in gpu_name or "rtx 4090" in gpu_name:
-            batch_size = 24 # 24GB GPUs
+            batch_size = 16 # 24GB GPUs scaled down from 24
             print(f"🚀 Detected {torch.cuda.get_device_name(0)}! Scaling batch size to {batch_size}.")
     else:
         print(f"Detected {num_gpus} GPUs. Using fallback batch size {batch_size}.")
