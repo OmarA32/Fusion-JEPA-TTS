@@ -87,6 +87,7 @@ def clean_old_checkpoints(log_dir, max_keep=1):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size (default: 4 for SpatialDiT).")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database to use.")
     parser.add_argument("--val", action="store_true", help="Run validation step during training.")
@@ -137,7 +138,7 @@ def main():
     if hasattr(torch, "xpu") and device.type == "xpu":
         num_gpus = torch.xpu.device_count()
         
-    batch_size = 14 # Optimized batch size to hit exactly ~930 batches
+    batch_size = args.batch_size
     print(f"Detected {num_gpus} GPUs on {device.type.upper()}. Using batch size {batch_size}.")
 
     train_loader = DataLoader(
@@ -163,7 +164,8 @@ def main():
         spec_height=128, 
         spec_width=512,
         diffloss='flow', 
-        jepaloss='jepa'
+        jepaloss='jepa',
+        grad_checkpointing=True
     ).to(device)
     
     ema_model = copy.deepcopy(model).to(device)
