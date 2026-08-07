@@ -60,7 +60,8 @@ if __name__ == "__main__":
         print(f"[ERROR] No checkpoints found in {log_dir} to upload!")
         sys.exit(1)
         
-    epoch_str = f"Epoch {max_epoch}"
+    # Add 1 to max_epoch to convert PyTorch Lightning's 0-indexed epoch into a human-readable number (matching the auto-uploader)
+    epoch_str = f"Epoch {max_epoch + 1}"
     if max_epoch == 99999999: # last.ckpt indicator
         try:
             import torch
