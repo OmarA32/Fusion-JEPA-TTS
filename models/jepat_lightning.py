@@ -9,6 +9,7 @@ class JEPATLightning(L.LightningModule):
         self.save_hyperparameters()
         self.learning_rate = learning_rate
         self.ema_decay = ema_decay
+        self.strict_loading = False # Safely ignore missing incompatible weights when upgrading from legacy checkpoints
         
         # Initialize the base model
         self.model = JEPAT_base(

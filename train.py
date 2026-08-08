@@ -120,8 +120,17 @@ def get_latest_checkpoint(log_dir):
     else:
         return latest_pt, "pt", max_pt_epoch
 
+class ResumeEpochCallback(L.Callback):
+    def __init__(self, start_epoch, global_step):
+        self.start_epoch = start_epoch
+        self.global_step = global_step
+        
+    def on_train_start(self, trainer, pl_module):
+        trainer.fit_loop.epoch_progress.current.completed = self.start_epoch
+        print(f"Manually forced PyTorch Lightning to resume at Epoch {self.start_epoch} (Step {self.global_step})")
+
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Train Lightning JEPA-TTS")
     parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
@@ -278,26 +287,41 @@ def main():
                 ckpt_path = temp_ckpt_path
                 print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
             else:
-                print("Loading Lightning checkpoint weights manually with strict=False to support DiT upgrade!")
-                
-                # Strip out any keys related to diffloss so PyTorch doesn't crash on size mismatches for identically named layers
-                keys_to_delete = [k for k in checkpoint["state_dict"].keys() if "diffloss" in k]
-                for k in keys_to_delete:
-                    del checkpoint["state_dict"][k]
+                # Auto-detect if this checkpoint has the legacy diffusion weights or the new SpatialDiT weights
+                is_legacy_ckpt = False
+                test_key = "model.diffloss.net.res_blocks.0.mlp.0.weight"
+                if test_key in checkpoint["state_dict"]:
+                    if checkpoint["state_dict"][test_key].shape == torch.Size([1024, 1024]):
+                        is_legacy_ckpt = True
+                        
+                if is_legacy_ckpt:
+                    print("Legacy diffusion architecture detected! Stripping incompatible weights and bypassing optimizer restoration...")
                     
-                model.load_state_dict(checkpoint["state_dict"], strict=False)
-                ckpt_path = None # Set to None so Lightning starts fresh optimizers for the new DiT
+                    # Manually load the weights, dropping the incompatible diffloss layers
+                    stripped_state = {k: v for k, v in checkpoint["state_dict"].items() if "diffloss" not in k}
+                    model.load_state_dict(stripped_state, strict=False)
+                    
+                    # Inject a callback to manually force the epoch counter forward, since we are setting ckpt_path=None
+                    approx_step = checkpoint.get("global_step", found_epoch * len(train_loader))
+                    real_epoch = checkpoint.get("epoch", found_epoch)
+                    trainer.callbacks.append(ResumeEpochCallback(start_epoch=real_epoch, global_step=approx_step))
+                    
+                    ckpt_path = None
+                    
+                    # SAFEGUARD: Archive the checkpoint so it doesn't infinitely loop on future resumes
+                    safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
+                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
+                    print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
+                    try:
+                        import shutil
+                        shutil.move(found_path, archived_path)
+                    except Exception as e:
+                        print(f"Warning: Could not archive {found_path}: {e}")
+                else:
+                    print("Modern DiT architecture detected! Resuming natively...")
+                    ckpt_path = found_path
                 
-                # SAFEGUARD: Archive the checkpoint so it doesn't infinitely loop on future resumes
-                # We must strip the word 'epoch' out of the filename so get_latest_checkpoint() ignores it!
-                safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
-                archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
-                print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
-                try:
-                    import shutil
-                    shutil.move(found_path, archived_path)
-                except Exception as e:
-                    print(f"Warning: Could not archive {found_path}: {e}")
+
         else:
             print("No checkpoint found to resume from. Starting from scratch.")
 
