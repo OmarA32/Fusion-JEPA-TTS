@@ -204,17 +204,19 @@ def main():
             
             if ckpt_type == "pt":
                 # Raw PyTorch weights
-                model.load_state_dict(checkpoint['model_state_dict'])
-                ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
-                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                model_state = {k: v for k, v in checkpoint['model_state_dict'].items() if 'diffloss' not in k}
+                ema_state = {k: v for k, v in checkpoint['ema_model_state_dict'].items() if 'diffloss' not in k}
+                model.load_state_dict(model_state, strict=False)
+                ema_model.load_state_dict(ema_state, strict=False)
+                # optimizer.load_state_dict(checkpoint['optimizer_state_dict']) # Skip optimizer to prevent shape crash
                 start_epoch = found_epoch + 1
             elif ckpt_type == "ckpt":
                 # PyTorch Lightning weights (requires stripping the 'model.' and 'ema_model.' prefixes)
                 state_dict = checkpoint['state_dict']
-                model_state = {k.replace('model.', ''): v for k, v in state_dict.items() if k.startswith('model.')}
-                ema_state = {k.replace('ema_model.', ''): v for k, v in state_dict.items() if k.startswith('ema_model.')}
-                model.load_state_dict(model_state)
-                ema_model.load_state_dict(ema_state)
+                model_state = {k.replace('model.', ''): v for k, v in state_dict.items() if k.startswith('model.') and 'diffloss' not in k}
+                ema_state = {k.replace('ema_model.', ''): v for k, v in state_dict.items() if k.startswith('ema_model.') and 'diffloss' not in k}
+                model.load_state_dict(model_state, strict=False)
+                ema_model.load_state_dict(ema_state, strict=False)
                 # Lightning's optimizer state is nested, so we skip restoring it for manual loops to prevent shape crashing
                 start_epoch = found_epoch + 1
             print(f"Resumed successfully. Starting at epoch {start_epoch}")

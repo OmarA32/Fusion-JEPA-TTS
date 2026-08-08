@@ -279,6 +279,12 @@ def main():
                 print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
             else:
                 print("Loading Lightning checkpoint weights manually with strict=False to support DiT upgrade!")
+                
+                # Strip out any keys related to diffloss so PyTorch doesn't crash on size mismatches for identically named layers
+                keys_to_delete = [k for k in checkpoint["state_dict"].keys() if "diffloss" in k]
+                for k in keys_to_delete:
+                    del checkpoint["state_dict"][k]
+                    
                 model.load_state_dict(checkpoint["state_dict"], strict=False)
                 ckpt_path = None # Set to None so Lightning starts fresh optimizers for the new DiT
                 
