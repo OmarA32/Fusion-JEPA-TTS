@@ -294,12 +294,15 @@ def main():
                     if checkpoint["state_dict"][test_key].shape == torch.Size([1024, 1024]):
                         is_legacy_ckpt = True
                         
-                if is_legacy_ckpt:
-                    print("Legacy diffusion architecture detected! Stripping incompatible weights and bypassing optimizer restoration...")
-                    
-                    # Manually load the weights, dropping the incompatible diffloss layers
-                    stripped_state = {k: v for k, v in checkpoint["state_dict"].items() if "diffloss" not in k}
-                    model.load_state_dict(stripped_state, strict=False)
+                if is_legacy_ckpt or args.freeze_jepa:
+                    if is_legacy_ckpt:
+                        print("Legacy diffusion architecture detected! Stripping incompatible weights and bypassing optimizer restoration...")
+                        # Manually load the weights, dropping the incompatible diffloss layers
+                        stripped_state = {k: v for k, v in checkpoint["state_dict"].items() if "diffloss" not in k}
+                        model.load_state_dict(stripped_state, strict=False)
+                    else:
+                        print("JEPA freeze toggled on a modern checkpoint! Bypassing optimizer restoration to prevent shape mismatch...")
+                        model.load_state_dict(checkpoint["state_dict"], strict=False)
                     
                     # Inject a callback to manually force the epoch counter forward, since we are setting ckpt_path=None
                     approx_step = checkpoint.get("global_step", found_epoch * len(train_loader))
@@ -311,7 +314,7 @@ def main():
                     # SAFEGUARD: Archive the checkpoint so it doesn't infinitely loop on future resumes
                     safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
                     archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
-                    print(f"Archiving stripped checkpoint to {archived_path} to protect future resumes...")
+                    print(f"Archiving bypassed checkpoint to {archived_path} to protect future resumes...")
                     try:
                         import shutil
                         shutil.move(found_path, archived_path)
