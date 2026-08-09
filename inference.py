@@ -95,7 +95,8 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
             model_dict = {}
             for k, v in state_dict.items():
                 if k.startswith("model."):
-                    model_dict[k.replace("model.", "", 1)] = v
+                    k_new = k.replace("model.", "", 1)
+                    model_dict[k_new] = v
             try:
                 model.load_state_dict(model_dict, strict=False)
             except Exception as e:
@@ -198,7 +199,7 @@ if __name__ == "__main__":
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
     parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
     parser.add_argument('--vocoder', type=str, default='bigvgan', choices=['vocos', 'bigvgan'], help="Vocoder to use.")
-    parser.add_argument('--cfg-scale', type=float, default=3.0, help="Classifier-Free Guidance scale (1.0 disables it).")
+    parser.add_argument('--cfg-scale', type=float, default=7.0, help="Classifier-Free Guidance scale (1.0 disables it).")
     parser.add_argument('--save-mel', action='store_true', help="Save an image of the mel spectrogram(s)")
     args = parser.parse_args()
 
