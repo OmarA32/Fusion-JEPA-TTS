@@ -137,6 +137,7 @@ def main():
     parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
     parser.add_argument("--val", action="store_true", help="Enable validation loop during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
+    parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
@@ -211,6 +212,12 @@ def main():
         print("Freezing JEPA (ViT) backbone! Only the Diffusion MLP will be trained.")
         for name, param in model.model.named_parameters():
             if not name.startswith("diffloss"):
+                param.requires_grad = False
+                
+    if args.freeze_diffuser:
+        print("Freezing SpatialDiT diffuser! Only the JEPA backbone will be trained.")
+        for name, param in model.model.named_parameters():
+            if name.startswith("diffloss"):
                 param.requires_grad = False
                 
     # Freezing the EMA model in Lightning (if it exists as a separate attribute)

@@ -119,8 +119,6 @@ class JEPAT(nn.Module):
         )
         
         self.label_drop_prob = label_drop_prob
-        self.fuse_proj = nn.Linear(self.decoder_embed_dim + self.encoder_embed_dim,
-                           self.decoder_embed_dim, bias=True)
         # Fake class embedding for cfg_scale's unconditional generation
         self.fake_latent = nn.Parameter(torch.zeros(1, encoder_embed_dim))
 
@@ -310,16 +308,18 @@ class JEPAT(nn.Module):
         bsz, seq_len, embed_dim = x.shape
         x = x + self.encoder_pos_embed_learned
 
-        # append buffer
-        pooled_class_embedding = class_embedding.mean(dim=1) if class_embedding.dim() == 3 else class_embedding
-        buffer = self.buffer + pooled_class_embedding.unsqueeze(1)
-        x = torch.cat([buffer.type_as(x), x], dim=1)
+        # single-stream concatenation
+        text_tokens = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
+        text_len = text_tokens.shape[1]
+        
+        # Replace buffer with raw text tokens
+        x = torch.cat([text_tokens.type_as(x), x], dim=1)
 
-        mask_with_buffer = torch.cat(
-            [torch.zeros(bsz, self.buffer_size, device=x.device), mask], dim=1)
+        mask_with_text = torch.cat(
+            [torch.zeros(bsz, text_len, device=x.device), mask], dim=1)
 
         # dropping
-        indices = (1-mask_with_buffer.float()).nonzero(as_tuple=True)
+        indices = (1-mask_with_text.float()).nonzero(as_tuple=True)
         x = x[indices].reshape(bsz, -1, embed_dim)
 
         tokens = x.shape[1]
@@ -344,22 +344,22 @@ class JEPAT(nn.Module):
         bsz = len(x)
         x = self.decoder_embed(x)
 
-        # If class_embedding is provided, add it to the decoder input
         if class_embedding is not None:
-            pooled_class_embedding = class_embedding.mean(dim=1) if class_embedding.dim() == 3 else class_embedding
-            pooled_class_embedding = pooled_class_embedding.unsqueeze(1).expand(bsz, x.size(1), -1)
-            x = x + pooled_class_embedding
+            text_tokens = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
+            text_len = text_tokens.shape[1]
+        else:
+            text_len = self.buffer_size # fallback
 
-        mask_with_buffer = torch.cat(
-            [torch.zeros(x.size(0), self.buffer_size, device=x.device), mask], dim=1)
+        mask_with_text = torch.cat(
+            [torch.zeros(x.size(0), text_len, device=x.device), mask], dim=1)
 
         # pad mask tokens
         x_after_pad = self.mask_token.repeat(
-            bsz, self.buffer_size + self.seq_len, 1).type_as(x).clone()
-        indices = (1 - mask_with_buffer).nonzero(as_tuple=True)
+            bsz, text_len + self.seq_len, 1).type_as(x).clone()
+        indices = (1 - mask_with_text).nonzero(as_tuple=True)
         x_after_pad[indices] = x.reshape(x.shape[0] * x.shape[1], x.shape[2])
     
-        x_after_pad[:, self.buffer_size:] += self.decoder_pos_embed_learned
+        x_after_pad[:, text_len:] += self.decoder_pos_embed_learned
         freqs_cis = None
 
         # decoder position embedding
@@ -375,8 +375,8 @@ class JEPAT(nn.Module):
                 x = blk(x, freqs_cis=freqs_cis)
         x = self.decoder_norm(x)
 
-        # drop buffer size.
-        x = x[:, self.buffer_size:] #[32,320,768]
+        # drop text tokens.
+        x = x[:, text_len:] #[bsz, seq_len, embed_dim]
         return x
 
     def diffusion_loss(self, z, target, mask):
@@ -481,7 +481,11 @@ class JEPAT(nn.Module):
 
         # mae encoder
         x = self.forward_encoder(x, mask, class_embedding)
-        return x[:, self.buffer_size:]  # drop the buffer size for ema.
+        
+        text_tokens = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
+        text_len = text_tokens.shape[1]
+        
+        return x[:, text_len:]  # drop the text tokens for ema.
 
     def forward(self, imgs, labels, ema_x=None):
         # patchify and mask (drop) tokens
@@ -497,20 +501,6 @@ class JEPAT(nn.Module):
 
         # mae decoder
         z = self.forward_decoder(x, mask, class_embedding)
-        # Cross attn
-        if class_embedding.dim() == 2:
-            # English CLIP (Single Vector)
-            class_embedding_ca = class_embedding.unsqueeze(1) 
-            class_embedding_concat = class_embedding.unsqueeze(1).expand(-1, z.size(1), -1) 
-        else:
-            # Arabic Phonemes (Full Sequence)
-            class_embedding_ca = class_embedding 
-            class_embedding_concat = class_embedding.mean(dim=1, keepdim=True).expand(-1, z.size(1), -1)
-
-        z_attended, _ = self.cross_attention(query=z, key=class_embedding_ca, value=class_embedding_ca)
-        z = z + z_attended 
-        z = torch.cat([z, class_embedding_concat], dim=-1)
-        z = self.fuse_proj(z) 
 
         # diffloss
         if not isinstance(self.diffloss, nn.Identity):
@@ -552,19 +542,6 @@ class JEPAT(nn.Module):
         
         x = self.forward_encoder(tokens, mask, class_embedding)
         z = self.forward_decoder(x, mask, class_embedding)
-
-        # 4. POST-PREDICTOR CROSS ATTENTION (This was completely missing in inference!)
-        if class_embedding.dim() == 2:
-            class_embedding_ca = class_embedding.unsqueeze(1) 
-            class_embedding_concat = class_embedding.unsqueeze(1).expand(-1, z.size(1), -1) 
-        else:
-            class_embedding_ca = class_embedding 
-            class_embedding_concat = class_embedding.mean(dim=1, keepdim=True).expand(-1, z.size(1), -1)
-
-        z_attended, _ = self.cross_attention(query=z, key=class_embedding_ca, value=class_embedding_ca)
-        z = z + z_attended 
-        z = torch.cat([z, class_embedding_concat], dim=-1)
-        z = self.fuse_proj(z) 
 
         # 5. Sample Full Mel Spectrogram using SpatialDiT (Flow Matching)
         sampled_tokens = self.diffloss.sample(

@@ -5,6 +5,13 @@ vocos
 datasets>=3.0.0
 soundfile
 scipy
+torch
+torchaudio
+lightning
+vocos
+datasets>=3.0.0
+soundfile
+scipy
 timm
 git+https://github.com/openai/CLIP.git
 torchdiffeq
