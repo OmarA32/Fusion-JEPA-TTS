@@ -16,7 +16,7 @@ from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
-def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos", save_mel=False, mel_gt=None, cfg_scale=3.0):
+def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos", save_mel=False, mel_gt=None, cfg_scale=3.0, steps=60):
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         device = torch.device("xpu")
     elif torch.cuda.is_available():
@@ -32,7 +32,8 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         spec_height=128, 
         spec_width=512,
         diffloss='flow', 
-        jepaloss='jepa'
+        jepaloss='jepa',
+        num_sampling_steps=steps
     ).to(device)
     
     import re
@@ -200,6 +201,7 @@ if __name__ == "__main__":
     parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
     parser.add_argument('--vocoder', type=str, default='bigvgan', choices=['vocos', 'bigvgan'], help="Vocoder to use.")
     parser.add_argument('--cfg-scale', type=float, default=7.0, help="Classifier-Free Guidance scale (1.0 disables it).")
+    parser.add_argument('--steps', type=int, default=60, help="Number of diffusion steps for Flow Matching.")
     parser.add_argument('--save-mel', action='store_true', help="Save an image of the mel spectrogram(s)")
     args = parser.parse_args()
 
@@ -237,4 +239,4 @@ if __name__ == "__main__":
     else:
         mel_gt = None
     
-    generate_audio(args.text, args.lang, args.db, args.output, args.vocoder, args.save_mel, mel_gt, args.cfg_scale)
+    generate_audio(args.text, args.lang, args.db, args.output, args.vocoder, args.save_mel, mel_gt, args.cfg_scale, args.steps)

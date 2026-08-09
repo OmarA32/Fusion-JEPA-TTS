@@ -16,6 +16,7 @@ if [ -z "$ARGS" ]; then
     echo "    --output         (Optional: Custom output WAV file path)"
     echo "    --vocoder        [vocos, bigvgan] (Optional: Vocoder to use)"
     echo "    --cfg-scale      (Optional: Classifier-Free Guidance scale, default 1.0)"
+    echo "    --steps          (Optional: Number of ODE diffusion steps, default 60)"
     echo "    --save-mel       (Optional: Save an image of the mel spectrogram)"
     echo ""
     echo "  Defaults: --lang arabic --db nawar_halabi"
