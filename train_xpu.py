@@ -91,6 +91,7 @@ def main():
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database to use.")
     parser.add_argument("--val", action="store_true", help="Run validation step during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
+    parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
@@ -177,7 +178,11 @@ def main():
             if not name.startswith("diffloss"):
                 param.requires_grad = False
                 
-
+    if args.freeze_diffuser:
+        print("Freezing SpatialDiT diffuser! Only the JEPA backbone will be trained.")
+        for name, param in model.named_parameters():
+            if name.startswith("diffloss"):
+                param.requires_grad = False
     if num_gpus > 1:
         print(f"Wrapping models in DataParallel across {num_gpus} GPUs...")
         model = torch.nn.DataParallel(model)
