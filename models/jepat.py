@@ -528,86 +528,53 @@ class JEPAT(nn.Module):
         return diffloss, jepa_loss
 
     def sample_tokens(self, bsz, num_iter=64, cfg_scale=1.0, cfg_schedule="linear", labels=None, temperature=1.0, time_shifting_factor=1.0, progress=False):
+        
+        # 1. Process Text / Class Embeddings
+        if labels is not None:
+            features = self.get_phoneme_embedding(labels)
+            class_embedding = self.class_emb(features)
+        else:
+            class_embedding = self.fake_latent.repeat(bsz, 1)
 
-        # init and sample generation orders
-        mask = torch.ones(bsz, self.seq_len, device=self.fake_latent.device)
-        tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim, device=self.fake_latent.device)
-        orders = self.sample_orders(bsz)
-
-        indices = list(range(num_iter))
-        if progress:
-            indices = tqdm(indices)
-        # generate latents
-        for step in indices:
-            cur_tokens = tokens.clone()
-
-            # class embedding and cfg_scale
-            if labels is not None:
-                features = self.get_phoneme_embedding(labels)
-                class_embedding = self.class_emb(features)
+        # 2. CFG Duplication
+        if not cfg_scale == 1.0:
+            if class_embedding.dim() == 3:
+                seq_len_text = class_embedding.size(1)
+                fake_class = self.fake_latent.unsqueeze(1).repeat(bsz, seq_len_text, 1)
             else:
-                class_embedding = self.fake_latent.repeat(bsz, 1)
-            if not cfg_scale == 1.0:
-                tokens = torch.cat([tokens, tokens], dim=0)
-                if class_embedding.dim() == 3:
-                    seq_len_text = class_embedding.size(1)
-                    fake_class = self.fake_latent.unsqueeze(1).repeat(bsz, seq_len_text, 1)
-                else:
-                    fake_class = self.fake_latent.repeat(bsz, 1)
-                class_embedding = torch.cat(
-                    [class_embedding, fake_class], dim=0)
-                mask = torch.cat([mask, mask], dim=0)
+                fake_class = self.fake_latent.repeat(bsz, 1)
+            class_embedding = torch.cat([class_embedding, fake_class], dim=0)
+            
+        # 3. Run JEPA Backbone with 100% Masking
+        eff_bsz = bsz * 2 if cfg_scale != 1.0 else bsz
+        tokens = torch.zeros(eff_bsz, self.seq_len, self.token_embed_dim, device=self.fake_latent.device)
+        mask = torch.ones(eff_bsz, self.seq_len, device=self.fake_latent.device)
+        
+        x = self.forward_encoder(tokens, mask, class_embedding)
+        z = self.forward_decoder(x, mask, class_embedding)
 
-            # mae encoder
-            x = self.forward_encoder(tokens, mask, class_embedding)
+        # 4. POST-PREDICTOR CROSS ATTENTION (This was completely missing in inference!)
+        if class_embedding.dim() == 2:
+            class_embedding_ca = class_embedding.unsqueeze(1) 
+            class_embedding_concat = class_embedding.unsqueeze(1).expand(-1, z.size(1), -1) 
+        else:
+            class_embedding_ca = class_embedding 
+            class_embedding_concat = class_embedding.mean(dim=1, keepdim=True).expand(-1, z.size(1), -1)
 
-            # mae decoder
-            z = self.forward_decoder(x, mask, class_embedding)
+        z_attended, _ = self.cross_attention(query=z, key=class_embedding_ca, value=class_embedding_ca)
+        z = z + z_attended 
+        z = torch.cat([z, class_embedding_concat], dim=-1)
+        z = self.fuse_proj(z) 
 
-            # mask ratio for the next round, following MaskGIT and MAGE.
-            mask_ratio = np.cos(math.pi / 2. * (step + 1) / num_iter)
-            mask_len = torch.Tensor(
-                [np.floor(self.seq_len * mask_ratio)]).to(self.fake_latent.device)
+        # 5. Sample Full Mel Spectrogram using SpatialDiT (Flow Matching)
+        sampled_tokens = self.diffloss.sample(
+            z, temperature=temperature, cfg_scale=cfg_scale, time_shifting_factor=time_shifting_factor)
+            
+        if not cfg_scale == 1.0:
+            sampled_tokens, _ = sampled_tokens.chunk(2, dim=0)
 
-            # masks out at least one for the next iteration
-            mask_len = torch.maximum(torch.Tensor([1]).to(self.fake_latent.device),
-                                     torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len))  # type: ignore
-
-            # get masking for next iteration and locations to be predicted in this iteration
-            mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)
-            if step >= num_iter - 1:
-                mask_to_pred = mask[:bsz].bool()
-            else:
-                mask_to_pred = torch.logical_xor(
-                    mask[:bsz].bool(), mask_next.bool())
-            mask = mask_next
-            if not cfg_scale == 1.0:
-                mask_to_pred = torch.cat([mask_to_pred, mask_to_pred], dim=0)
-
-            # cfg_scale schedule follow Muse
-            if cfg_schedule == "linear":
-                cfg_iter = 1 + (cfg_scale - 1) * (self.seq_len -
-                                                  mask_len[0]) / self.seq_len
-            elif cfg_schedule == "constant":
-                cfg_iter = cfg_scale
-            else:
-                raise NotImplementedError
-                
-            # Sample token latents for the FULL sequence using SpatialDiT
-            sampled_tokens = self.diffloss.sample(
-                z, temperature=temperature, cfg_scale=cfg_iter, time_shifting_factor=time_shifting_factor)
-                
-            if not cfg_scale == 1.0:
-                sampled_tokens, _ = sampled_tokens.chunk(
-                    2, dim=0)  # Remove null class samples
-                mask_to_pred, _ = mask_to_pred.chunk(2, dim=0)
-
-            cur_tokens[mask_to_pred.nonzero(
-                as_tuple=True)] = sampled_tokens[mask_to_pred.nonzero(as_tuple=True)]
-            tokens = cur_tokens.clone()
-
-        # unpatchify
-        tokens = self.unpatchify(tokens)
+        # 6. Unpatchify to standard spectrogram shape
+        tokens = self.unpatchify(sampled_tokens)
         return tokens
 
 
