@@ -301,14 +301,14 @@ def main():
                     if checkpoint["state_dict"][test_key].shape == torch.Size([1024, 1024]):
                         is_legacy_ckpt = True
                         
-                if is_legacy_ckpt or args.freeze_jepa:
+                if is_legacy_ckpt or args.freeze_jepa or args.freeze_diffuser:
                     if is_legacy_ckpt:
                         print("Legacy diffusion architecture detected! Stripping incompatible weights and bypassing optimizer restoration...")
                         # Manually load the weights, dropping the incompatible diffloss layers
                         stripped_state = {k: v for k, v in checkpoint["state_dict"].items() if "diffloss" not in k}
                         model.load_state_dict(stripped_state, strict=False)
                     else:
-                        print("JEPA freeze toggled on a modern checkpoint! Bypassing optimizer restoration to prevent shape mismatch...")
+                        print("Freeze mechanism toggled on a checkpoint! Bypassing optimizer restoration to prevent shape mismatch...")
                         model.load_state_dict(checkpoint["state_dict"], strict=False)
                     
                     # Inject a callback to manually force the epoch counter forward, since we are setting ckpt_path=None
