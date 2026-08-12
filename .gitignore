@@ -160,3 +160,7 @@ output*.wav
 *_output_mel.png
 restore_notebook.py
 hf_config.json
+
+# Ignore datasets and large audio files
+data/arabic-speech-corpus/
+*.wav
