@@ -468,11 +468,7 @@ class JEPAT(nn.Module):
 
         # mae encoder
         x = self.forward_encoder(x, mask, class_embedding)
-        
-        text_tokens = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
-        text_len = text_tokens.shape[1]
-        
-        return x[:, text_len:]  # drop the text tokens for ema.
+        return x
 
     def forward(self, imgs, labels, ema_x=None):
         # patchify and mask (drop) tokens
