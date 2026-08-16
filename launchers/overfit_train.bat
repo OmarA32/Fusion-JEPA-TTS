@@ -13,6 +13,8 @@ if "%args%"=="" (
     echo     --db             [common_voice, nawar_halabi, ljspeech, clartts, libritts] (Optional: Dataset database)
     echo     --val            (Optional: Flag to enable validation loops)
     echo     --resume         (Optional: Flag to resume from the latest checkpoint)
+    echo     --freeze_jepa    (Optional: Freeze the ViT backbone and train only the Diffusion MLP)
+    echo     --freeze_diffuser(Optional: Freeze the SpatialDiT diffuser and train only the JEPA backbone)
     echo.
     echo   Defaults: --lang arabic --db nawar_halabi
     echo =========================================================
