@@ -71,23 +71,23 @@ def get_latest_checkpoint(log_dir):
     else:
         return latest_pt, "pt", max_pt_epoch
 
-def clean_old_checkpoints(log_dir, max_keep=1):
-    """Keep only the most recent N best checkpoints to save disk space."""
-    best_ckpts = []
+def clean_old_checkpoints(log_dir, max_keep=3):
+    """Keep only the most recent N periodic checkpoints to save disk space."""
+    periodic_ckpts = []
     if os.path.exists(log_dir):
         for f in os.listdir(log_dir):
-            if f.startswith("best-epoch=") and f.endswith(".ckpt"):
-                best_ckpts.append(os.path.join(log_dir, f))
+            if f.startswith("overfit_epoch_") and f.endswith(".ckpt"):
+                periodic_ckpts.append(os.path.join(log_dir, f))
     
     # Sort by epoch number (extracted using regex)
     try:
-        best_ckpts.sort(key=lambda x: int(re.search(r"epoch=(\d+)", os.path.basename(x)).group(1)))
+        periodic_ckpts.sort(key=lambda x: int(re.search(r"overfit_epoch_(\d+)", os.path.basename(x)).group(1)))
     except:
         pass
     
     # Delete oldest if we exceed max_keep
-    if len(best_ckpts) > max_keep:
-        for f in best_ckpts[:-max_keep]:
+    if len(periodic_ckpts) > max_keep:
+        for f in periodic_ckpts[:-max_keep]:
             os.remove(f)
 
 def main():
@@ -383,6 +383,9 @@ def main():
             periodic_ckpt_path = os.path.join(log_dir, f"overfit_epoch_{epoch:04d}.ckpt")
             torch.save(lightning_ckpt, periodic_ckpt_path)
             print(f"Saved periodic checkpoint: {periodic_ckpt_path}")
+            
+            # Clean up older periodic checkpoints (keep top 3)
+            clean_old_checkpoints(log_dir, max_keep=3)
             
             # 2. Save Best Epoch if loss improved
             if avg_val_loss < best_val_loss:
