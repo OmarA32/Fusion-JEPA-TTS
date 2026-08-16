@@ -372,23 +372,24 @@ def main():
         for k, v in ema_state.items():
             lightning_ckpt["state_dict"][f"ema_model.{k}"] = v
             
-        # 1. Save Last Epoch (Overwrites previous last-epoch)
-        last_ckpt_path = os.path.join(log_dir, "overfit.ckpt")
-        torch.save(lightning_ckpt, last_ckpt_path)
-        print(f"Saved latest checkpoint: {last_ckpt_path}")
-        
-        # 1.5 Save Periodic Checkpoint every 10 epochs
+        # --- CHECKPOINT SAVING (Only every 10 epochs to prevent disk IO bottleneck) ---
         if epoch % 10 == 0:
+            # 1. Save Last Epoch (Overwrites previous last-epoch)
+            last_ckpt_path = os.path.join(log_dir, "overfit.ckpt")
+            torch.save(lightning_ckpt, last_ckpt_path)
+            print(f"Saved latest checkpoint: {last_ckpt_path}")
+            
+            # 1.5 Save Periodic Checkpoint
             periodic_ckpt_path = os.path.join(log_dir, f"overfit_epoch_{epoch:04d}.ckpt")
             torch.save(lightning_ckpt, periodic_ckpt_path)
             print(f"Saved periodic checkpoint: {periodic_ckpt_path}")
-        
-        # 2. Save Best Epoch if loss improved
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            best_ckpt_path = os.path.join(log_dir, "best-overfit.ckpt")
-            torch.save(lightning_ckpt, best_ckpt_path)
-            print(f"Saved best checkpoint: {best_ckpt_path}")
+            
+            # 2. Save Best Epoch if loss improved
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                best_ckpt_path = os.path.join(log_dir, "best-overfit.ckpt")
+                torch.save(lightning_ckpt, best_ckpt_path)
+                print(f"Saved best checkpoint: {best_ckpt_path}")
 
 if __name__ == "__main__":
     main()
