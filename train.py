@@ -317,16 +317,6 @@ def main():
                     trainer.callbacks.append(ResumeEpochCallback(start_epoch=real_epoch, global_step=approx_step))
                     
                     ckpt_path = None
-                    
-                    # SAFEGUARD: Archive the checkpoint so it doesn't infinitely loop on future resumes
-                    safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
-                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
-                    print(f"Archiving bypassed checkpoint to {archived_path} to protect future resumes...")
-                    try:
-                        import shutil
-                        shutil.move(found_path, archived_path)
-                    except Exception as e:
-                        print(f"Warning: Could not archive {found_path}: {e}")
                 else:
                     print("Modern DiT architecture detected! Resuming natively...")
                     ckpt_path = found_path
