@@ -130,6 +130,56 @@ class Attention(nn.Module):
         return x
 
 
+class CrossAttention(nn.Module):
+    def __init__(self,
+                 dim: int,
+                 context_dim: int = None,
+                 num_heads: int = 8,
+                 qkv_bias: bool = False,
+                 qk_norm: bool = False,
+                 attn_drop: float = 0.,
+                 proj_drop: float = 0.,
+                 norm_layer=RMSNorm):
+        """
+        Initialize the Cross-Attention module.
+        """
+        super().__init__()
+        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        context_dim = context_dim or dim
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim ** -0.5
+
+        self.q = nn.Linear(dim, dim, bias=qkv_bias)
+        self.kv = nn.Linear(context_dim, dim * 2, bias=qkv_bias)
+        self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x: torch.Tensor, context: torch.Tensor):
+        B, N, C = x.shape
+        B_c, N_c, C_c = context.shape
+        dtype = x.dtype
+        
+        q = self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        kv = self.kv(context).reshape(B_c, N_c, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        k, v = kv.unbind(0)
+        
+        q, k = self.q_norm(q).to(dtype), self.k_norm(k).to(dtype)
+        x = F.scaled_dot_product_attention(
+            query=q,
+            key=k,
+            value=v,
+            dropout_p=self.attn_drop.p if self.training else 0.,
+        )
+        x = x.transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
 class Block(nn.Module):
     def __init__(
         self,
@@ -144,7 +194,9 @@ class Block(nn.Module):
         drop_path: float = 0.,
         norm_layer=LayerNorm,
         mlp_layer=Mlp,
-        attn_norm_layer=RMSNorm
+        attn_norm_layer=RMSNorm,
+        use_cross_attn: bool = False,
+        context_dim: Optional[int] = None
     ):
         super().__init__()
         attn_norm_layer = attn_norm_layer or norm_layer
@@ -164,6 +216,23 @@ class Block(nn.Module):
         self.drop_path1 = DropPath(
             drop_path) if drop_path > 0. else nn.Identity()
 
+        if use_cross_attn:
+            self.norm_cross = norm_layer(dim)
+            self.cross_attn = CrossAttention(
+                dim,
+                context_dim=context_dim,
+                num_heads=num_heads,
+                qkv_bias=qkv_bias,
+                qk_norm=qk_norm,
+                attn_drop=attn_drop,
+                proj_drop=proj_drop,
+                norm_layer=attn_norm_layer,
+            )
+            self.ls_cross = LayerScale(
+                dim, init_values=init_values) if init_values else nn.Identity()
+            self.drop_path_cross = DropPath(
+                drop_path) if drop_path > 0. else nn.Identity()
+
         self.norm2 = norm_layer(dim)
         self.mlp = mlp_layer(
             in_features=dim, hidden_features=int(dim * mlp_ratio), drop=proj_drop)
@@ -172,7 +241,9 @@ class Block(nn.Module):
         self.drop_path2 = DropPath(
             drop_path) if drop_path > 0. else nn.Identity()
 
-    def forward(self, x: torch.Tensor, mask=None, freqs_cis=None, *args, **kwargs):
+    def forward(self, x: torch.Tensor, mask=None, freqs_cis=None, context=None, *args, **kwargs):
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))
+        if hasattr(self, 'cross_attn') and context is not None:
+            x = x + self.drop_path_cross(self.ls_cross(self.cross_attn(self.norm_cross(x), context)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x

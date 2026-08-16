@@ -145,14 +145,14 @@ class JEPAT(nn.Module):
                   qkv_bias=True,
                   qk_norm=qk_norm,
                   proj_drop=proj_dropout,
-                  attn_drop=attn_dropout)
+                  attn_drop=attn_dropout,
+                  use_cross_attn=True,
+                  context_dim=encoder_embed_dim)
             for _ in range(encoder_depth)])
         self.encoder_norm = norm_layer(encoder_embed_dim)
 
-        # --------------------------------------------------------------------------
-        # Positional Embedding for decoder
-        self.encoder_pos_embed_learned = nn.Parameter(
-            torch.zeros(1, self.seq_len, encoder_embed_dim))
+        # Positional Embedding for decoder (1D sequential)
+        self.encoder_pos_embed = PositionalEncoding(d_model=encoder_embed_dim, max_len=10000)
 
         # --------------------------------------------------------------------------
         # JEPAT decoder specifics (no requires for classification task.)
@@ -166,15 +166,15 @@ class JEPAT(nn.Module):
                   qkv_bias=True,
                   qk_norm=qk_norm,
                   proj_drop=proj_dropout,
-                  attn_drop=attn_dropout)
+                  attn_drop=attn_dropout,
+                  use_cross_attn=True,
+                  context_dim=encoder_embed_dim)
             for _ in range(decoder_depth)])
 
         self.decoder_norm = norm_layer(decoder_embed_dim)
 
-        # --------------------------------------------------------------------------
-        # Positional Embedding for encoder
-        self.decoder_pos_embed_learned = nn.Parameter(
-            torch.zeros(1, self.seq_len, decoder_embed_dim))
+        # Positional Embedding for encoder (1D sequential)
+        self.decoder_pos_embed = PositionalEncoding(d_model=decoder_embed_dim, max_len=10000)
 
         # NOTE: initialize weights before diffusion loss!
         self.initialize_weights()
@@ -306,20 +306,15 @@ class JEPAT(nn.Module):
         """
         x = self.z_proj(x)
         bsz, seq_len, embed_dim = x.shape
-        x = x + self.encoder_pos_embed_learned
-
-        # single-stream concatenation
-        text_tokens = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
-        text_len = text_tokens.shape[1]
         
-        # Replace buffer with raw text tokens
-        x = torch.cat([text_tokens.type_as(x), x], dim=1)
+        # apply 1D position embedding
+        x = self.encoder_pos_embed(x)
 
-        mask_with_text = torch.cat(
-            [torch.zeros(bsz, text_len, device=x.device), mask], dim=1)
+        # Ensure text is 3D for context (batch, seq_len, dim)
+        text_context = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
 
-        # dropping
-        indices = (1-mask_with_text.float()).nonzero(as_tuple=True)
+        # dropping based on mask
+        indices = (1-mask.float()).nonzero(as_tuple=True)
         x = x[indices].reshape(bsz, -1, embed_dim)
 
         tokens = x.shape[1]
@@ -331,11 +326,10 @@ class JEPAT(nn.Module):
         # apply Transformer blocks
         if self.grad_checkpointing and not torch.jit.is_scripting():  # type: ignore
             for blk in self.encoder_blocks:
-                # pad None to support checkpoint
-                x = checkpoint(blk, x, None, None, freqs_cis)
+                x = checkpoint(blk, x, None, freqs_cis, text_context, use_reentrant=False)
         else:
             for blk in self.encoder_blocks:
-                x = blk(x, freqs_cis=freqs_cis)
+                x = blk(x, freqs_cis=freqs_cis, context=text_context)
         x = self.encoder_norm(x)
 
         return x
@@ -345,38 +339,31 @@ class JEPAT(nn.Module):
         x = self.decoder_embed(x)
 
         if class_embedding is not None:
-            text_tokens = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
-            text_len = text_tokens.shape[1]
+            text_context = class_embedding.unsqueeze(1) if class_embedding.dim() == 2 else class_embedding
         else:
-            text_len = self.buffer_size # fallback
-
-        mask_with_text = torch.cat(
-            [torch.zeros(x.size(0), text_len, device=x.device), mask], dim=1)
+            text_context = None
 
         # pad mask tokens
         x_after_pad = self.mask_token.repeat(
-            bsz, text_len + self.seq_len, 1).type_as(x).clone()
-        indices = (1 - mask_with_text).nonzero(as_tuple=True)
+            bsz, self.seq_len, 1).type_as(x).clone()
+        indices = (1 - mask).nonzero(as_tuple=True)
         x_after_pad[indices] = x.reshape(x.shape[0] * x.shape[1], x.shape[2])
     
-        x_after_pad[:, text_len:] += self.decoder_pos_embed_learned
-        freqs_cis = None
-
+        # apply 1D position embedding
+        x_after_pad = self.decoder_pos_embed(x_after_pad)
         # decoder position embedding
+        freqs_cis = None
         x = x_after_pad
 
         # apply Transformer blocks
         if self.grad_checkpointing and not torch.jit.is_scripting():  # type: ignore
             for blk in self.decoder_blocks:
-                # pad None to support checkpoint
-                x = checkpoint(blk, x, None, None, freqs_cis)
+                x = checkpoint(blk, x, None, freqs_cis, text_context, use_reentrant=False)
         else:
             for blk in self.decoder_blocks:
-                x = blk(x, freqs_cis=freqs_cis)
+                x = blk(x, freqs_cis=freqs_cis, context=text_context)
         x = self.decoder_norm(x)
 
-        # drop text tokens.
-        x = x[:, text_len:] #[bsz, seq_len, embed_dim]
         return x
 
     def diffusion_loss(self, z, target, mask):
