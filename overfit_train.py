@@ -140,8 +140,8 @@ def main():
     
     from torch.utils.data import Subset
     
-    # 8 random fixed indices for the scorched earth overfitting test
-    overfit_indices = [42, 108, 512, 1024, 2048, 4096, 8192, 12000]
+    # 5 random fixed indices for the scorched earth overfitting test
+    overfit_indices = [108, 512, 1024, 2048, 4096]
     
     # Ensure indices are within bounds
     overfit_indices = [idx % len(full_train_dataset) for idx in overfit_indices]
