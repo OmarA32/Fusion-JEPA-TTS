@@ -22,6 +22,12 @@ from models.jepat import JEPAT_base
 
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory using os.walk."""
+    
+    # Priority: If an overfit.ckpt exists from a previous debugging run, load it immediately.
+    overfit_path = os.path.join(log_dir, "overfit.ckpt")
+    if os.path.exists(overfit_path):
+        return overfit_path, "ckpt", -1
+        
     latest_pt = None
     max_pt_epoch = -1
     latest_ckpt = None
@@ -370,6 +376,12 @@ def main():
         last_ckpt_path = os.path.join(log_dir, "overfit.ckpt")
         torch.save(lightning_ckpt, last_ckpt_path)
         print(f"Saved latest checkpoint: {last_ckpt_path}")
+        
+        # 1.5 Save Periodic Checkpoint every 10 epochs
+        if epoch % 10 == 0:
+            periodic_ckpt_path = os.path.join(log_dir, f"overfit_epoch_{epoch:04d}.ckpt")
+            torch.save(lightning_ckpt, periodic_ckpt_path)
+            print(f"Saved periodic checkpoint: {periodic_ckpt_path}")
         
         # 2. Save Best Epoch if loss improved
         if avg_val_loss < best_val_loss:
