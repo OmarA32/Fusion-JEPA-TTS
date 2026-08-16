@@ -141,7 +141,10 @@ def main():
     from torch.utils.data import Subset
     
     # 5 random fixed indices for the scorched earth overfitting test
-    overfit_indices = [108, 512, 1024, 2048, 4096]
+    if args.lang.lower() == 'arabic':
+        overfit_indices = [109, 512, 1024, 2048, 4096]
+    else:
+        overfit_indices = [108, 512, 1024, 2048, 4096]
     
     # Ensure indices are within bounds
     overfit_indices = [idx % len(full_train_dataset) for idx in overfit_indices]
