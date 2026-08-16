@@ -37,13 +37,14 @@ def download_and_extract_nawar_halabi(data_dir):
     return target_dir
 
 class JEPADataset(Dataset):
-    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=128):
+    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=128, min_duration_sec=5.5):
         super().__init__()
         self.lang = lang.lower()
         self.db = db.lower()
         self.split = split
         self.jepa_sr = jepa_sr
         self.max_frames = max_frames
+        self.min_duration_sec = min_duration_sec
         
         # Audio extraction function
         bigvgan_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "BigVGAN")
@@ -66,6 +67,49 @@ class JEPADataset(Dataset):
         self.data_dir = os.path.join(PROJECT_ROOT, "data")
         self.dataset = []
         self._load_database()
+
+    def _filter_by_duration(self, raw_items):
+        import json
+        import soundfile as sf
+        
+        cache_path = os.path.join(self.data_dir, f"{self.db}_duration_cache.json")
+        durations = {}
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    durations = json.load(f)
+            except Exception:
+                pass
+                
+        filtered_items = []
+        cache_updated = False
+        
+        print(f"Filtering {self.db} for clips >= {self.min_duration_sec}s...")
+        for item in raw_items:
+            path = item.get("audio_path")
+            if not path:
+                filtered_items.append(item)
+                continue
+                
+            if path in durations:
+                dur = durations[path]
+            else:
+                try:
+                    info = sf.info(path)
+                    dur = info.duration
+                    durations[path] = dur
+                    cache_updated = True
+                except Exception:
+                    dur = 0.0
+                    
+            if dur >= self.min_duration_sec:
+                filtered_items.append(item)
+                
+        if cache_updated:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(durations, f)
+                
+        return filtered_items
 
     def _load_database(self):
         print(f"Loading {self.lang.upper()} dataset: {self.db.upper()}...")
@@ -107,6 +151,8 @@ class JEPADataset(Dataset):
                             })
                             
                 print(f"Loaded {len(self.dataset)} clips from Nawar Halabi.")
+                self.dataset = self._filter_by_duration(self.dataset)
+                print(f"Filtered down to {len(self.dataset)} clips >= {self.min_duration_sec}s.")
             else:
                 raise ValueError(f"Database {self.db} not supported for Arabic.")
                 
@@ -153,6 +199,8 @@ class JEPADataset(Dataset):
                                 "sentence": parts[2] if len(parts) > 2 and parts[2] else parts[1]
                             })
                 print(f"Loaded {len(self.dataset)} clips from LJSpeech.")
+                self.dataset = self._filter_by_duration(self.dataset)
+                print(f"Filtered down to {len(self.dataset)} clips >= {self.min_duration_sec}s.")
             elif self.db == "libritts":
                 ds = torchaudio.datasets.LIBRITTS(self.data_dir, url="train-clean-100", download=True)
                 for item in ds:
