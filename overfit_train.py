@@ -142,9 +142,9 @@ def main():
     
     # 5 random fixed indices for the scorched earth overfitting test
     if args.lang.lower() == 'arabic':
-        overfit_indices = [109, 512, 1024, 2048, 4096]
+        overfit_indices = [80, 393, 689, 166, 357]
     else:
-        overfit_indices = [108, 512, 1024, 2048, 4096]
+        overfit_indices = [71, 337, 707, 1429, 2842]
     
     # Ensure indices are within bounds
     overfit_indices = [idx % len(full_train_dataset) for idx in overfit_indices]
