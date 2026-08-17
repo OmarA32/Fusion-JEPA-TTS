@@ -37,7 +37,7 @@ def download_and_extract_nawar_halabi(data_dir):
     return target_dir
 
 class JEPADataset(Dataset):
-    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=128, min_duration_sec=5.5):
+    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=128, min_duration_sec=0.0):
         super().__init__()
         self.lang = lang.lower()
         self.db = db.lower()
@@ -69,8 +69,11 @@ class JEPADataset(Dataset):
         self._load_database()
 
     def _filter_by_duration(self, raw_items):
-        import json
+        if self.min_duration_sec <= 0.0:
+            return raw_items
+            
         import soundfile as sf
+        import json
         
         cache_path = os.path.join(self.data_dir, f"{self.db}_duration_cache.json")
         durations = {}
