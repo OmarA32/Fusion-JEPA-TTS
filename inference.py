@@ -31,6 +31,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         language=lang,
         spec_height=128, 
         spec_width=512,
+        patch_size=16,
         diffloss='flow', 
         jepaloss='jepa',
         num_sampling_steps=steps
@@ -129,7 +130,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         print(f"Error processing text: {e}")
         return
 
-    text_input = [text] 
+    text_input = [tokens] 
 
     print("Running Diffusion Generation (This may take a minute on CPU)...")
     with torch.no_grad():

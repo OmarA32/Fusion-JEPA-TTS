@@ -138,6 +138,7 @@ def main():
     parser.add_argument("--val", action="store_true", help="Enable validation loop during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
     parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
+    parser.add_argument("--epochs", type=int, default=10000, help="Maximum number of training epochs (default: 10000).")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
@@ -250,7 +251,7 @@ def main():
     lightning_strategy = "ddp" if num_gpus > 1 else "auto"
     
     trainer = L.Trainer(
-        max_epochs=10000, # Train indefinitely until stopped
+        max_epochs=args.epochs,
         accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
         devices="auto",
         strategy=lightning_strategy,
@@ -317,16 +318,6 @@ def main():
                     trainer.callbacks.append(ResumeEpochCallback(start_epoch=real_epoch, global_step=approx_step))
                     
                     ckpt_path = None
-                    
-                    # SAFEGUARD: Archive the checkpoint so it doesn't infinitely loop on future resumes
-                    safe_name = os.path.basename(found_path).replace("epoch", "archived_step")
-                    archived_path = os.path.join(os.path.dirname(found_path), f"ARCHIVED_{safe_name}")
-                    print(f"Archiving bypassed checkpoint to {archived_path} to protect future resumes...")
-                    try:
-                        import shutil
-                        shutil.move(found_path, archived_path)
-                    except Exception as e:
-                        print(f"Warning: Could not archive {found_path}: {e}")
                 else:
                     print("Modern DiT architecture detected! Resuming natively...")
                     ckpt_path = found_path

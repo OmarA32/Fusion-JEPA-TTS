@@ -1,0 +1,3 @@
+Original: A B C D E
+Reshaped: A B C D E
+Bidi R: A B C D E

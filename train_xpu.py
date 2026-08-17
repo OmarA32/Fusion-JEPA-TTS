@@ -92,6 +92,7 @@ def main():
     parser.add_argument("--val", action="store_true", help="Run validation step during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
     parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
+    parser.add_argument("--epochs", type=int, default=10000, help="Total number of epochs to train (default: 10000).")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
@@ -163,6 +164,7 @@ def main():
         language=args.lang,
         spec_height=128, 
         spec_width=512,
+        patch_size=16,
         diffloss='flow', 
         jepaloss='jepa',
         grad_checkpointing=True
@@ -207,23 +209,56 @@ def main():
             print(f"Resuming training from {ckpt_type} checkpoint: {found_path}")
             checkpoint = torch.load(found_path, map_location=device, weights_only=False)
             
-            if ckpt_type == "pt":
-                # Raw PyTorch weights
-                model_state = {k: v for k, v in checkpoint['model_state_dict'].items() if 'diffloss' not in k}
-                ema_state = {k: v for k, v in checkpoint['ema_model_state_dict'].items() if 'diffloss' not in k}
+            # Auto-detect if this checkpoint has the legacy diffusion weights or the new SpatialDiT weights
+            is_legacy_ckpt = False
+            test_key = "model.diffloss.net.res_blocks.0.mlp.0.weight"
+            state_dict_to_check = checkpoint['state_dict'] if ckpt_type == "ckpt" else checkpoint.get('model_state_dict', {})
+            
+            if test_key in state_dict_to_check:
+                if state_dict_to_check[test_key].shape == torch.Size([1024, 1024]):
+                    is_legacy_ckpt = True
+                    
+            if is_legacy_ckpt or args.freeze_jepa or args.freeze_diffuser:
+                if is_legacy_ckpt:
+                    print("Legacy diffusion architecture detected! Stripping incompatible weights and bypassing optimizer restoration...")
+                    if ckpt_type == "pt":
+                        model_state = {k: v for k, v in checkpoint.get('model_state_dict', {}).items() if 'diffloss' not in k}
+                        ema_state = {k: v for k, v in checkpoint.get('ema_model_state_dict', {}).items() if 'diffloss' not in k}
+                    else:
+                        model_state = {k.replace('model.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('model.') and 'diffloss' not in k}
+                        ema_state = {k.replace('ema_model.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('ema_model.') and 'diffloss' not in k}
+                else:
+                    print("Freeze mechanism toggled on a checkpoint! Bypassing optimizer restoration to prevent shape mismatch...")
+                    if ckpt_type == "pt":
+                        model_state = checkpoint.get('model_state_dict', {})
+                        ema_state = checkpoint.get('ema_model_state_dict', {})
+                    else:
+                        model_state = {k.replace('model.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('model.')}
+                        ema_state = {k.replace('ema_model.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('ema_model.')}
+                
                 model.load_state_dict(model_state, strict=False)
                 ema_model.load_state_dict(ema_state, strict=False)
                 # optimizer.load_state_dict(checkpoint['optimizer_state_dict']) # Skip optimizer to prevent shape crash
-                start_epoch = found_epoch + 1
-            elif ckpt_type == "ckpt":
-                # PyTorch Lightning weights (requires stripping the 'model.' and 'ema_model.' prefixes)
-                state_dict = checkpoint['state_dict']
-                model_state = {k.replace('model.', ''): v for k, v in state_dict.items() if k.startswith('model.') and 'diffloss' not in k}
-                ema_state = {k.replace('ema_model.', ''): v for k, v in state_dict.items() if k.startswith('ema_model.') and 'diffloss' not in k}
-                model.load_state_dict(model_state, strict=False)
-                ema_model.load_state_dict(ema_state, strict=False)
-                # Lightning's optimizer state is nested, so we skip restoring it for manual loops to prevent shape crashing
-                start_epoch = found_epoch + 1
+                
+                start_epoch = checkpoint.get("epoch", 0) + 1
+            else:
+                print("Modern DiT architecture detected! Resuming natively...")
+                if ckpt_type == "pt":
+                    model.load_state_dict(checkpoint.get('model_state_dict', {}), strict=False)
+                    ema_model.load_state_dict(checkpoint.get('ema_model_state_dict', {}), strict=False)
+                    if 'optimizer_state_dict' in checkpoint:
+                        try:
+                            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                        except Exception as e:
+                            print(f"Warning: Failed to load PyTorch optimizer state: {e}")
+                else:
+                    model_state = {k.replace('model.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('model.')}
+                    ema_state = {k.replace('ema_model.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('ema_model.')}
+                    model.load_state_dict(model_state, strict=False)
+                    ema_model.load_state_dict(ema_state, strict=False)
+                
+                start_epoch = checkpoint.get("epoch", 0) + 1
+                
             print(f"Resumed successfully. Starting at epoch {start_epoch}")
         else:
             print("No checkpoint found. Starting from scratch.")
@@ -234,7 +269,7 @@ def main():
     # Validation trackers
     best_val_loss = float('inf')
     
-    for epoch in range(start_epoch, 10000):
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         for batch_idx, batch in enumerate(train_loader):
             start_time = time.time()

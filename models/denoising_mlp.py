@@ -137,7 +137,7 @@ class SpatialDiT(nn.Module):
         self.cond_embed = nn.Linear(z_channels, model_channels)
         
         # 256 is the max sequence length (128//16 * 512//16 = 8 * 32 = 256)
-        self.pos_embed = nn.Parameter(torch.zeros(1, 256, model_channels))
+        self.pos_embed = nn.Parameter(torch.zeros(1, 4096, model_channels))
 
         self.input_proj = nn.Linear(in_channels, model_channels)
 
