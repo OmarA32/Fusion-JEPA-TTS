@@ -184,9 +184,9 @@ def main():
     model = JEPAT_base(
         in_channels=1, 
         language=args.lang,
-        spec_height=120, 
+        spec_height=128, 
         spec_width=512,
-        patch_size=(12, 16),
+        patch_size=16,
         diffloss='flow', 
         jepaloss='jepa',
         grad_checkpointing=True

@@ -4,7 +4,7 @@ import lightning as L
 from models.jepat import JEPAT_base
 
 class JEPATLightning(L.LightningModule):
-    def __init__(self, learning_rate=1e-4, ema_decay=0.9999, language='arabic', spec_height=120, spec_width=512, patch_size=(12, 16), **kwargs):
+    def __init__(self, learning_rate=1e-4, ema_decay=0.9999, language='arabic', spec_height=128, spec_width=512, patch_size=16, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         self.learning_rate = learning_rate

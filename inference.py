@@ -29,9 +29,9 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     model = JEPAT_base(
         in_channels=1, 
         language=lang,
-        spec_height=120, 
+        spec_height=128, 
         spec_width=512,
-        patch_size=(12, 16),
+        patch_size=16,
         diffloss='flow', 
         jepaloss='jepa',
         num_sampling_steps=steps

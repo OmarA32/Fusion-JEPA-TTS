@@ -29,7 +29,7 @@ class JEPAT(nn.Module):
     }
 
     def __init__(self,
-                 spec_height=120, spec_width=512, patch_size=(12, 16),
+                 spec_height=128, spec_width=512, patch_size=16,
                  encoder_embed_dim=768, encoder_depth=12, encoder_num_heads=12,
                  decoder_embed_dim=768, decoder_depth=12, decoder_num_heads=12,
                  mlp_ratio=4, norm_layer=LayerNorm,
