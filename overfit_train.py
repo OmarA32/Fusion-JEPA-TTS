@@ -98,6 +98,7 @@ def main():
     parser.add_argument("--val", action="store_true", help="Run validation step during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
     parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
+    parser.add_argument("--epochs", type=int, default=10000, help="Total number of epochs to train (default: 10000).")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
@@ -291,7 +292,7 @@ def main():
     # Validation trackers
     best_val_loss = float('inf')
     
-    for epoch in range(start_epoch, 10000):
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         for batch_idx, batch in enumerate(train_loader):
             start_time = time.time()

@@ -138,6 +138,7 @@ def main():
     parser.add_argument("--val", action="store_true", help="Enable validation loop during training.")
     parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
     parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
+    parser.add_argument("--epochs", type=int, default=10000, help="Maximum number of training epochs (default: 10000).")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
@@ -250,7 +251,7 @@ def main():
     lightning_strategy = "ddp" if num_gpus > 1 else "auto"
     
     trainer = L.Trainer(
-        max_epochs=10000, # Train indefinitely until stopped
+        max_epochs=args.epochs,
         accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
         devices="auto",
         strategy=lightning_strategy,

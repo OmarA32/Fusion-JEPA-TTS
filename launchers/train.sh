@@ -14,7 +14,7 @@ if [ -z "$ARGS" ]; then
     echo "    --val            (Optional: Flag to enable validation loops)"
     echo "    --resume         (Optional: Flag to resume from the latest checkpoint)"
     echo "    --freeze_jepa    (Optional: Freeze the ViT backbone and train only the Diffusion MLP)"
-    echo "    --checkpointnum  (Optional: Number of epochs between auto-uploads to HF)"
+    echo "    --epochs         (Optional: Maximum number of epochs to train, e.g. 2600)"
     echo "    --hf_token       (Optional: Save a Hugging Face token to hf_config.json automatically)"
     echo "    --download_latest(Optional: Download the latest checkpoint from HF before starting)"
     echo ""
