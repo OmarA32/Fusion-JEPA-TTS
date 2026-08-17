@@ -37,7 +37,7 @@ def download_and_extract_nawar_halabi(data_dir):
     return target_dir
 
 class JEPADataset(Dataset):
-    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=128, min_duration_sec=5.5):
+    def __init__(self, split="train", lang="arabic", db="nawar_halabi", jepa_sr=44100, max_frames=512, n_mels=120, min_duration_sec=5.5):
         super().__init__()
         self.lang = lang.lower()
         self.db = db.lower()
