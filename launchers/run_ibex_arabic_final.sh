@@ -46,6 +46,6 @@ pip install -r requirements.txt
 # 5. Launch PyTorch Lightning Distributed Training
 # 4x A100 GPUs, 2600 Epochs on Nawar Halabi Arabic Dataset
 echo "Booting up the Trainer across 4x A100 GPUs for 2,0000 Epochs..."
-python train.py --resume --download_latest --lang arabic --db nawar_halabi --epochs 20000 --hf_token "$1" --checkpointnum 80
+python train.py --resume --download_latest --lang arabic --db nawar_halabi --epochs 20000 --hf_token "$1" --checkpointnum 100
 
 echo "Job Completed!"
