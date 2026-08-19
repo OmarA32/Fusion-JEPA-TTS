@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # SLURM submission script for KAUST IBEX Supercomputer -- Audio-JEPA Arabic TTS
-# Matches D-JEPA paper scale (4x A100 GPUs, 2600 Epochs, Nawar Halabi)
+# Matches JEPA paper scale (4x A100 GPUs, 2600 Epochs, Nawar Halabi)
 # ==============================================================================
 # HOW TO DEPLOY ON IBEX:
 #   1. SSH into the GPU login node: ssh -XY username@glogin.ibex.kaust.edu.sa

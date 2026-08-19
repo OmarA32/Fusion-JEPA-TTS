@@ -1,9 +1,9 @@
 import copy
 import torch
 import lightning as L
-from models.jepat import JEPAT_base
+from models.jepa import JEPA_base
 
-class JEPATLightning(L.LightningModule):
+class JEPALightning(L.LightningModule):
     def __init__(self, learning_rate=1e-4, ema_decay=0.9999, language='arabic', spec_height=128, spec_width=512, patch_size=16, **kwargs):
         super().__init__()
         self.save_hyperparameters()
@@ -12,7 +12,7 @@ class JEPATLightning(L.LightningModule):
         self.strict_loading = False # Safely ignore missing incompatible weights when upgrading from legacy checkpoints
         
         # Initialize the base model with MM-DiT & 1D RoPE
-        self.model = JEPAT_base(
+        self.model = JEPA_base(
             in_channels=1, 
             language=language,
             spec_height=spec_height, 

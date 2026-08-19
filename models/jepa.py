@@ -22,7 +22,7 @@ def mask_by_order(mask_len, order, bsz, seq_len):
     return masking
 
 
-class JEPAT(nn.Module):
+class JEPA(nn.Module):
     no_weight_decay_set = {
         'diffloss', 'jepaloss', 'buffer', "head", "class_emb", "fake_latent", "z_proj",
         "phoneme_embedding", "decoder_embed", "mask_token",
@@ -377,8 +377,8 @@ class JEPAT(nn.Module):
         return specs
 
 
-def JEPAT_base(**kwargs):
-    model = JEPAT(
+def JEPA_base(**kwargs):
+    model = JEPA(
         encoder_embed_dim=768, encoder_depth=12, encoder_num_heads=12,
         decoder_embed_dim=768, decoder_depth=12, decoder_num_heads=12,
         mlp_ratio=4, diffloss_d=6, diffloss_w=1024,
@@ -386,8 +386,8 @@ def JEPAT_base(**kwargs):
     return model
 
 
-def JEPAT_large(**kwargs):
-    model = JEPAT(
+def JEPA_large(**kwargs):
+    model = JEPA(
         encoder_embed_dim=1024, encoder_depth=24, encoder_num_heads=16,
         decoder_embed_dim=1024, decoder_depth=24, decoder_num_heads=16,
         mlp_ratio=4, diffloss_d=8, diffloss_w=1280,
@@ -395,8 +395,8 @@ def JEPAT_large(**kwargs):
     return model
 
 
-def JEPAT_huge(**kwargs):
-    model = JEPAT(
+def JEPA_huge(**kwargs):
+    model = JEPA(
         encoder_embed_dim=1280, encoder_depth=32, encoder_num_heads=16,
         decoder_embed_dim=1280, decoder_depth=32, decoder_num_heads=16,
         mlp_ratio=4, diffloss_d=12, diffloss_w=1536,

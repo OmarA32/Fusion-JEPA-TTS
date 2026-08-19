@@ -18,7 +18,7 @@ except ImportError:
 
 from torch.utils.data import DataLoader
 from data.dataset import JEPADataset, jepa_collate_fn
-from models.jepat import JEPAT_base
+from models.jepa import JEPA_base
 
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory using os.walk."""
@@ -158,8 +158,8 @@ def main():
         num_workers=workers
     )
 
-    print("Initializing JEPAT Model...")
-    model = JEPAT_base(
+    print("Initializing JEPA Model...")
+    model = JEPA_base(
         in_channels=1, 
         language=args.lang,
         spec_height=128, 
