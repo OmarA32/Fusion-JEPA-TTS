@@ -14,7 +14,6 @@ if [ -z "$ARGS" ]; then
     echo "    --text           (Optional: Custom text string to synthesize into speech)"
     echo "    --index          (Optional: Dataset item index to fetch the exact text and ground truth mel)"
     echo "    --output         (Optional: Custom output WAV file path)"
-    echo "    --vocoder        [vocos, bigvgan] (Optional: Vocoder to use)"
     echo "    --cfg-scale      (Optional: Classifier-Free Guidance scale, default 1.0)"
     echo "    --steps          (Optional: Number of ODE diffusion steps, default 60)"
     echo "    --save-mel       (Optional: Save an image of the mel spectrogram)"

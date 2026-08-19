@@ -1,5 +1,6 @@
 # Fusion-JEPA: Expressive, Low-Resource Text-to-Speech (TTS)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Demo](https://img.shields.io/badge/Demo-Interactive_Audio_Showcase-00A896?style=for-the-badge&logo=google-chrome&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/)
 [![Research Paper](https://img.shields.io/badge/Paper-Research_Manuscript_(PDF)-E63946?style=for-the-badge&logo=adobe-acrobat-reader&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)
 [![KAUST Report](https://img.shields.io/badge/Report-KAUST_Lab_Report_(14p)-1D3557?style=for-the-badge&logo=overleaf&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)
@@ -77,7 +78,7 @@ Listen to side-by-side comparisons of **Ground Truth studio recordings** vs. **F
 
 ### 1. Installation
 
-Clone the repository and install the dependencies:
+Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/OmarA32/Fusion-JEPA-TTS.git
@@ -98,7 +99,7 @@ bash launchers/setup_env.sh
 
 ### 2. Speech Synthesis (Inference)
 
-Generate speech from arbitrary text or dataset index:
+Generate speech from arbitrary text or dataset index using BigVGAN v2 vocoding:
 
 ```bash
 # Arabic Synthesis
@@ -125,12 +126,6 @@ python train.py --lang arabic --db nawar_halabi --checkpointnum 5
 python train.py --lang english --db ljspeech --checkpointnum 5
 ```
 
-*Key Training Arguments:*
-- `--lang`: Language selector (`arabic` or `english`).
-- `--db`: Dataset (`nawar_halabi`, `common_voice`, `clartts`, `ljspeech`, `libritts`).
-- `--resume`: Automatically resume from the last saved checkpoint.
-- `--checkpointnum`: Periodically sync checkpoints to cloud repositories.
-
 ---
 
 ### 4. Overfitting Verification Protocol
@@ -148,12 +143,13 @@ python overfit_test.py --lang arabic --epochs 500
 
 ```text
 ├── models/                     # Fusion-JEPA Model Implementations
-│   ├── components/             # VisionTransformer, 1D RoPE, MM-DiT Predictor
-│   └── zero_shot_tts.py        # PyTorch Lightning Module with dual Lv + Lp loss
+│   ├── block.py                # MM-DiT & 1D RoPE Attention Blocks
+│   ├── jepat.py                # Core Fusion-JEPA Architecture
+│   └── jepat_lightning.py      # PyTorch Lightning Module with Lv + Lp loss
 ├── data/                       # Dataset Loaders & Tokenizers
 │   ├── dataset.py              # Mel-spectrogram extraction & phoneme tokenization
 │   └── buckwalter.py           # Arabic orthographic transliteration tools
-├── BigVGAN/                    # NVIDIA BigVGAN v2 Vocoder (44.1kHz Universal)
+├── BigVGAN/                    # NVIDIA BigVGAN v2 Neural Vocoder (44.1kHz Universal)
 ├── launchers/                  # Automated Shell & Batch Environment Wrappers
 ├── train.py                    # Main Multi-GPU Training Script (PyTorch Lightning)
 ├── inference.py                # Audio Generation & Waveform Synthesis
@@ -163,7 +159,7 @@ python overfit_test.py --lang arabic --epochs 500
 
 ---
 
-## 👥 Authors & Acknowledgments
+## 👥 Authors
 
 - **Omar Alkhammash** — King Khalid University / KAUST Academy ([LinkedIn](https://www.linkedin.com/in/omar-alkhammash-104b9b350))
 - **Abdulrahman Soliman** — KAUST Academy
@@ -174,8 +170,26 @@ python overfit_test.py --lang arabic --epochs 500
 
 ---
 
+## 🙏 Acknowledgments & Prior Work
+
+We gratefully acknowledge the foundational open-source models, architectures, and datasets that informed and supported this research:
+
+- **JEPA & Self-Supervised Learning:** Yann LeCun (*A Path Towards Autonomous Machine Intelligence*, 2022) and Meta AI's *V-JEPA / I-JEPA*.
+- **Continuous Flow Matching:** Lipman et al., *Flow Matching for Generative Modeling* (2023).
+- **BigVGAN Neural Vocoder:** NVIDIA's [BigVGAN](https://github.com/NVIDIA/BigVGAN) repository (Lee et al., 2024).
+- **Arabic Speech Corpus:** [Nawar Halabi Arabic Speech Corpus](http://en.arabicspeechcorpus.com/) (Halabi, 2016).
+- **English Benchmark:** [LJSpeech-1.1](https://keithito.com/LJ-Speech-Dataset/) (Ito & Johnson, 2017).
+
+---
+
 ## 📄 Publications & Documentation
 
 - 📑 **[Research Manuscript (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)**: 6-page IEEE-format conference paper with mathematical derivations and benchmark evaluations.
 - 📘 **[KAUST Lab Report (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)**: 14-page comprehensive technical report with implementation details and Slurm recipes.
 - 📊 **[Presentation Slides (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_Presentation.pdf)**: 15-slide defense presentation.
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.

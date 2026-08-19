@@ -7,8 +7,7 @@ from data.dataset import JEPADataset
 from vocoder_manager import VocoderManager
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--vocoder", type=str, default="bigvgan", choices=["vocos", "bigvgan"], help="Vocoder to use.")
+    parser = argparse.ArgumentParser(description="Test BigVGAN Ground Truth Vocoding")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"])
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
     parser.add_argument("--index", type=int, default=10, help="Index of the test dataset item to synthesize.")
@@ -44,8 +43,8 @@ def main():
         
     print(f"Ground truth mel-spectrogram shape: {mel_tgt.shape}")
     
-    print(f"Loading {args.vocoder} Vocoder...")
-    vocoder = VocoderManager(vocoder_type=args.vocoder, device=device)
+    print("Loading BigVGAN Vocoder...")
+    vocoder = VocoderManager(device=device)
     
     print("Passing ground-truth mel directly through vocoder...")
     with torch.no_grad():
@@ -57,9 +56,9 @@ def main():
     
     out_dir = "test_results"
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"ground_truth_index_{args.index}_{args.vocoder}.wav")
+    out_path = os.path.join(out_dir, f"ground_truth_index_{args.index}_bigvgan.wav")
     
-    sample_rate = 44100 if args.vocoder == 'bigvgan' else 24000
+    sample_rate = 44100
     wavfile.write(out_path, sample_rate, audio_int16)
     print(f"Saved: {out_path}")
 

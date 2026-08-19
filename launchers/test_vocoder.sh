@@ -12,7 +12,6 @@ if [ -z "$ARGS" ]; then
     echo "    --lang           [arabic, english] (Optional: Language of the model)"
     echo "    --db             [common_voice, nawar_halabi, ljspeech, clartts, libritts] (Optional: Dataset database)"
     echo "    --index          (Optional: Index of the test dataset item to synthesize)"
-    echo "    --vocoder        [vocos, bigvgan] (Optional: Vocoder to use)"
     echo ""
     echo "  Defaults: --lang arabic --db nawar_halabi"
     echo "========================================================="
