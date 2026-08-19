@@ -31,39 +31,6 @@
   <img src="assets/model_architecture.png" alt="Fusion-JEPA Architecture Diagram" width="92%">
 </p>
 
-### System Dataflow
-
-```
-                    ┌────────────────────────┐
-                    │ Raw Audio Spectrogram  │
-                    └───────────┬────────────┘
-                                │
-                    ┌───────────┴────────────┐
-                    │    Patch Extraction    │ (16x16 / 128-bin)
-                    └─────┬────────────┬─────┘
-                          │            │
-             (Unmasked)   ▼            ▼   (Full Spectrogram)
-                 ┌───────────────┐   ┌───────────────────────────┐
-                 │Context Encoder│   │  EMA Target Teacher φ̄     │
-                 └───────┬───────┘   └─────────────┬─────────────┘
-                         │                         │ (Stop Gradient)
-                         ▼                         ▼
-                 ┌───────────────┐         ┌───────────────┐
- Phonetized Text ┤ MM-DiT Predict│────────▶│JEPA Loss (Lp) │
-  + 1D RoPE Pos  │  (Flow Vector)│         └───────────────┘
-  + Timestep (t) └───────┬───────┘
-                         │
-                         ▼
-                 ┌───────────────┐
-                 │Flow Match (Lv)│ (Continuous Velocity Vector Field)
-                 └───────┬───────┘
-                         │
-                         ▼
-                 ┌───────────────┐
-                 │BigVGAN v2 (44k│───────▶ High-Fidelity 44.1kHz Waveform
-                 └───────────────┘
-```
-
 ---
 
 ## Interactive Audio Demos
