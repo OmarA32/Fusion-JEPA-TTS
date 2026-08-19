@@ -1,67 +1,175 @@
-# Audio-JEPA Text-to-Speech (TTS)
+# Fusion-JEPA: Expressive, Low-Resource Text-to-Speech (TTS)
 
-An open-source, dual-language Text-to-Speech (TTS) pipeline leveraging a modified Joint-Embedding Predictive Architecture (JEPA-T). This repository contains the complete infrastructure for training, inference, and cloud synchronization for both English and Arabic audio generation.
+[![Demo](https://img.shields.io/badge/Demo-Interactive_Audio_Showcase-00A896?style=for-the-badge&logo=google-chrome&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/)
+[![Research Paper](https://img.shields.io/badge/Paper-Research_Manuscript_(PDF)-E63946?style=for-the-badge&logo=adobe-acrobat-reader&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)
+[![KAUST Report](https://img.shields.io/badge/Report-KAUST_Lab_Report_(14p)-1D3557?style=for-the-badge&logo=overleaf&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)
+[![Presentation](https://img.shields.io/badge/Slides-Beamer_Presentation-EE964B?style=for-the-badge&logo=microsoft-powerpoint&logoColor=white)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_Presentation.pdf)
 
-## Features
-- **Dual-Language End-to-End TTS**: Full support for both Arabic and English phonetic modeling.
-- **Multiple Database Integration**: Natively trains on `nawar_halabi`, `common_voice`, `clartts` (Arabic) and `ljspeech`, `libritts` (English).
-- **Advanced Vocoders**: Uses NVIDIA's [BigVGAN](https://github.com/NVIDIA/BigVGAN) as the default high-fidelity vocoder, with fallback support for Vocos. 
-- **Automated Supercomputer Pipeline**: Includes a fully-automated Kaggle/Colab Jupyter Notebook (`supercomputer_training.ipynb`) designed for distributed multi-GPU (DDP) training.
-- **Cloud Checkpoint Syncing**: Built-in PyTorch Lightning callback automatically pushes updated weights to `KASP-JEPA` Hugging Face repositories seamlessly during training.
+> **Fusion-JEPA** is an open-source, bilingual Text-to-Speech (TTS) architecture that decouples abstract phonetic representation learning from continuous acoustic distribution modeling via **Joint-Embedding Predictive Architecture (JEPA)**, **Multimodal Diffusion Transformer (MM-DiT)**, and **Continuous Flow Matching**.
 
-## Installation & Setup
+---
 
-### Supercomputer / Cloud (Kaggle/Colab)
-For cloud platforms, simply upload and run `supercomputer_training.ipynb`. It automatically handles environment setup, multi-GPU configuration, dataset downloading, and Hugging Face authentication.
+## 🌟 Key Innovations
 
-### Local Installation
-To run the project locally, execute the setup scripts to automatically securely configure your Python virtual environment and install all dependencies (PyTorch, Lightning, Transformers, BigVGAN).
+1. **Self-Supervised JEPA Latent Space ($\mathcal{L}_p$):**  
+   An Exponential Moving Average (EMA, $\alpha=0.9999$) Target Teacher network guides the Context Encoder in latent space without collapsing or needing large negative contrastive pairs.
+2. **Continuous Conditional Flow Matching ($\mathcal{L}_v$):**  
+   Replaces blurry pixel-level $L_1/L_2$ regression with vector velocity field modeling, eliminating robotic buzzing and preserving sharp high-frequency harmonic formants.
+3. **Multimodal Diffusion Transformer (MM-DiT) with 1D RoPE:**  
+   Concatenates discrete phonemic text tokens and continuous acoustic patches into unified self-attention layers with 1D Rotary Position Embeddings for length-invariant temporal conditioning.
+4. **Studio-Grade 44.1 kHz Vocoding:**  
+   Generates 128-band Mel-spectrograms natively aligned with BigVGAN v2 neural vocoding (anti-aliased periodic Snake activations) for broadcast-quality waveform synthesis.
+5. **Low-Resource Modern Standard Arabic (MSA):**  
+   Learns complex Arabic phonetics, geminate consonants (*Shaddah*), and emphatic sounds with $< 4$ hours of studio data.
+
+---
+
+## 🏛 Architecture
+
+```
+                    ┌────────────────────────┐
+                    │ Raw Audio Spectrogram  │
+                    └───────────┬────────────┘
+                                │
+                    ┌───────────┴────────────┐
+                    │    Patch Extraction    │ (16x16 / 128-bin)
+                    └─────┬────────────┬─────┘
+                          │            │
+             (Unmasked)   ▼            ▼   (Full Spectrogram)
+                 ┌───────────────┐   ┌───────────────────────────┐
+                 │Context Encoder│   │  EMA Target Teacher φ̄     │
+                 └───────┬───────┘   └─────────────┬─────────────┘
+                         │                         │ (Stop Gradient)
+                         ▼                         ▼
+                 ┌───────────────┐         ┌───────────────┐
+ Phonetized Text ┤ MM-DiT Predict│────────▶│JEPA Loss (Lp) │
+  + 1D RoPE Pos  │  (Flow Vector)│         └───────────────┘
+  + Timestep (t) └───────┬───────┘
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │Flow Match (Lv)│ (Continuous Velocity Vector Field)
+                 └───────┬───────┘
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │BigVGAN v2 (44k│───────▶ High-Fidelity 44.1kHz Waveform
+                 └───────────────┘
+```
+
+---
+
+## 🎧 Interactive Audio Demos
+
+Listen to side-by-side comparisons of **Ground Truth studio recordings** vs. **Fusion-JEPA generated speech** on our interactive GitHub Pages showcase:
+
+👉 **[https://omara32.github.io/Fusion-JEPA-TTS/](https://omara32.github.io/Fusion-JEPA-TTS/)**
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+
+Clone the repository and install the dependencies:
+
+```bash
+git clone https://github.com/OmarA32/Fusion-JEPA-TTS.git
+cd Fusion-JEPA-TTS
+```
 
 **Windows:**
-Double-click `launchers/setup_env.bat` or `launchers/setup_env_xpu.bat`
-
-**Linux/Mac:**
-Run `bash launchers/setup_env.sh` or `bash launchers/setup_env_xpu.sh`
-
-## Pipeline Usage
-
-All core logic is contained within the root Python files. You can execute them directly, or use the convenient `launchers/` wrapper scripts to automatically hook into your virtual environment.
-
-### 1. Training (`train.py`)
-Trains the JEPA-T model. Automatically scales to multiple GPUs using PyTorch Lightning DDP strategy.
-```bash
-python train.py --lang english --db ljspeech --checkpointnum 2
-```
-*Arguments:*
-- `--lang`: `english` or `arabic`
-- `--db`: Dataset to use (must match language)
-- `--resume`: Resumes from the last saved checkpoint
-- `--val`: Enables validation (Note: turning validation off drastically saves disk space)
-- `--checkpointnum`: Syncs `last.ckpt` to Hugging Face every N epochs
-
-### 2. Inference (`inference.py`)
-Generates audio from text using the latest trained model weights.
-```bash
-python inference.py --lang english --text "Hello world"
-```
-*Arguments:*
-- `--lang`: Language model to load
-- `--text`: The string of text to synthesize
-- `--index`: Alternative to `--text`. Provide an integer index to grab the corresponding ground-truth transcript from the dataset for testing.
-- `--db`: (Required if using `--index`) The dataset to read from.
-
-### 3. Vocoder Testing (`test_vocoder_ground_truth.py`)
-Extracts raw ground-truth audio from the dataset, converts it to mel-spectrograms, and pushes it through the BigVGAN vocoder to isolate and test the absolute maximum audio quality achievable by the vocoder alone (ignoring the JEPA model).
-```bash
-python test_vocoder_ground_truth.py --lang english --db ljspeech --index 25
+```bat
+launchers\setup_env.bat
 ```
 
-### 4. Cloud Synchronization 
-Manually interact with the Hugging Face hub outside of the training loop.
-- `download_from_hf.py`: Downloads the latest pre-trained model weights.
-- `upload_to_hf.py`: Manually pushes local weights to the cloud.
+**Linux / Mac:**
+```bash
+bash launchers/setup_env.sh
+```
 
-## Repository Structure
-- `data/`: Contains `dataset.py` logic for downloading datasets, tokenizing text, and extracting mel-spectrograms.
-- `launchers/`: Contains `.bat` and `.sh` wrapper scripts for all major operations.
-- `BigVGAN/`: Git Submodule linked directly to NVIDIA's source code for mel-spectrogram extraction and audio reconstruction.
+---
+
+### 2. Speech Synthesis (Inference)
+
+Generate speech from arbitrary text or dataset index:
+
+```bash
+# Arabic Synthesis
+python inference.py --lang arabic --text "وَتَتَضَمَّنُ حَفَلَاتٍ لِمُوسِيقَى الْجَازِ"
+
+# English Synthesis
+python inference.py --lang english --text "This is Fusion JEPA text to speech synthesis."
+
+# Synthesize by dataset index (LJSpeech or Nawar Halabi)
+python inference.py --lang english --db ljspeech --index 71
+```
+
+---
+
+### 3. Model Training
+
+Train the dual-loss Fusion-JEPA architecture with PyTorch Lightning:
+
+```bash
+# Train on Arabic Speech Corpus (Nawar Halabi)
+python train.py --lang arabic --db nawar_halabi --checkpointnum 5
+
+# Train on LJSpeech (English)
+python train.py --lang english --db ljspeech --checkpointnum 5
+```
+
+*Key Training Arguments:*
+- `--lang`: Language selector (`arabic` or `english`).
+- `--db`: Dataset (`nawar_halabi`, `common_voice`, `clartts`, `ljspeech`, `libritts`).
+- `--resume`: Automatically resume from the last saved checkpoint.
+- `--checkpointnum`: Periodically sync checkpoints to cloud repositories.
+
+---
+
+### 4. Overfitting Verification Protocol
+
+To verify architecture convergence and eliminate representation collapse before full cluster scaling:
+
+```bash
+python overfit_test.py --lang english --epochs 500
+python overfit_test.py --lang arabic --epochs 500
+```
+
+---
+
+## 📂 Repository Structure
+
+```text
+├── models/                     # Fusion-JEPA Model Implementations
+│   ├── components/             # VisionTransformer, 1D RoPE, MM-DiT Predictor
+│   └── zero_shot_tts.py        # PyTorch Lightning Module with dual Lv + Lp loss
+├── data/                       # Dataset Loaders & Tokenizers
+│   ├── dataset.py              # Mel-spectrogram extraction & phoneme tokenization
+│   └── buckwalter.py           # Arabic orthographic transliteration tools
+├── BigVGAN/                    # NVIDIA BigVGAN v2 Vocoder (44.1kHz Universal)
+├── launchers/                  # Automated Shell & Batch Environment Wrappers
+├── train.py                    # Main Multi-GPU Training Script (PyTorch Lightning)
+├── inference.py                # Audio Generation & Waveform Synthesis
+├── overfit_test.py             # Empirical Overfitting Verification Suite
+└── supercomputer_training.ipynb# Distributed Multi-GPU Cluster Notebook
+```
+
+---
+
+## 👥 Authors & Acknowledgments
+
+- **Omar Alkhammash** — King Khalid University / KAUST Academy ([LinkedIn](https://www.linkedin.com/in/omar-alkhammash-104b9b350))
+- **Abdulrahman Soliman** — KAUST Academy
+- **Hassan Alahmed** — KAUST Academy ([LinkedIn](https://www.linkedin.com/in/hassan-alahmed-192a61336))
+- **Mentor:** **Dr. Kerven Durdymyradov** — KAUST Academy AI Program
+
+*Developed as part of the **KAUST Academy Artificial Intelligence Program** (August 2026).*
+
+---
+
+## 📄 Publications & Documentation
+
+- 📑 **[Research Manuscript (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)**: 6-page IEEE-format conference paper with mathematical derivations and benchmark evaluations.
+- 📘 **[KAUST Lab Report (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)**: 14-page comprehensive technical report with implementation details and Slurm recipes.
+- 📊 **[Presentation Slides (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_Presentation.pdf)**: 15-slide defense presentation.
