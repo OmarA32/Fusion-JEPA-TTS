@@ -13,7 +13,7 @@
 ## Key Innovations
 
 1. **Self-Supervised JEPA Latent Space ($\mathcal{L}_p$):**  
-   An Exponential Moving Average (EMA, $\alpha=0.9999$) Target Teacher network guides the Context Encoder in latent space without collapsing or needing large negative contrastive pairs.
+   An Exponential Moving Average (EMA, $\alpha=0.9999$) Target Teacher network encodes full acoustic spectrograms to provide stable target representations for the Predictor.
 2. **Continuous Conditional Flow Matching ($\mathcal{L}_v$):**  
    Replaces blurry pixel-level $L_1/L_2$ regression with vector velocity field modeling, eliminating robotic buzzing and preserving sharp high-frequency harmonic formants.
 3. **Multimodal Diffusion Transformer (MM-DiT) with 1D RoPE:**  
