@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fusion-JEPA | Expressive, Low-Resource Text-to-Speech</title>
+    <meta name="description" content="Fusion-JEPA: Expressive, Low-Resource Text-to-Speech via Joint-Embedding Predictive Architecture, MM-DiT, and Continuous Flow Matching.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            navy: '#0B2545',
+                            blue: '#134074',
+                            cyan: '#00A896',
+                            accent: '#EE964B',
+                            dark: '#08121E',
+                            card: '#0D1E33',
+                            border: '#1A365D'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        arabic: ['Cairo', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        .glass-panel {
+            background: rgba(13, 30, 51, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(26, 54, 93, 0.8);
+        }
+        .glass-card {
+            background: rgba(15, 35, 60, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.25s ease-in-out;
+        }
+        .glass-card:hover {
+            border-color: rgba(0, 168, 150, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 168, 150, 0.15);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #00A896 0%, #38BDF8 50%, #EE964B 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-brand-dark text-slate-200 font-sans antialiased selection:bg-brand-cyan selection:text-white min-h-screen">
+
+    <!-- Sticky Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-brand-border/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-cyan to-brand-blue flex items-center justify-center shadow-lg shadow-brand-cyan/20">
+                    <i class="fa-solid fa-wave-square text-white text-base"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-lg tracking-tight text-white">Fusion<span class="text-brand-cyan">-JEPA</span></span>
+                    <span class="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20">TTS Research</span>
+                </div>
+            </div>
+            
+            <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
+                <a href="#about" class="hover:text-brand-cyan transition-colors">Overview</a>
+                <a href="#architecture" class="hover:text-brand-cyan transition-colors">Architecture</a>
+                <a href="#demos" class="hover:text-brand-cyan transition-colors flex items-center gap-1.5 text-brand-cyan font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-brand-cyan animate-pulse"></span> Audio Demos
+                </a>
+                <a href="#reports" class="hover:text-brand-cyan transition-colors">Papers & Reports</a>
+                <a href="https://github.com/OmarA32/Fusion-JEPA-TTS" target="_blank" class="hover:text-brand-cyan transition-colors flex items-center gap-1">
+                    <i class="fa-brands fa-github"></i> GitHub
+                </a>
+            </nav>
+
+            <div class="flex items-center space-x-3">
+                <a href="https://github.com/OmarA32/Fusion-JEPA-TTS" target="_blank" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-brand-blue/80 hover:bg-brand-blue text-white text-xs font-semibold border border-brand-cyan/30 transition shadow-sm">
+                    <i class="fa-brands fa-github text-brand-cyan"></i>
+                    <span>Code Repo</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="about" class="relative pt-12 pb-20 overflow-hidden">
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute top-1/3 left-1/4 w-[400px] h-[300px] bg-brand-blue/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+            <div class="inline-flex flex-wrap items-center justify-center gap-2 mb-6 px-4 py-1.5 rounded-full bg-brand-card/80 border border-brand-border text-xs text-slate-300">
+                <span class="flex items-center gap-1.5 font-semibold text-brand-cyan">
+                    <i class="fa-solid fa-graduation-cap"></i> KAUST Academy AI Program
+                </span>
+                <span class="text-slate-500">•</span>
+                <span>August 2026</span>
+                <span class="text-slate-500">•</span>
+                <span class="text-brand-accent font-medium">Bilingual Arabic & English TTS</span>
+            </div>
+
+            <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+                <span class="gradient-text">Fusion-JEPA:</span> Expressive, Low-Resource Text-to-Speech
+            </h1>
+
+            <p class="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto mb-8 font-light leading-relaxed">
+                Decoupling abstract phonetic representation learning from continuous acoustic distribution modeling via 
+                <strong class="text-white font-medium">Joint-Embedding Predictive Architecture (JEPA)</strong>, 
+                <strong class="text-white font-medium">MM-DiT</strong>, and 
+                <strong class="text-white font-medium">Continuous Flow Matching</strong>.
+            </p>
+
+            <!-- Interactive Author Badges with LinkedIn Integration -->
+            <div class="mb-10 flex flex-wrap justify-center items-center gap-y-3 gap-x-4 text-sm text-slate-300">
+                <a href="https://www.linkedin.com/in/omar-alkhammash-104b9b350" target="_blank" class="px-3 py-1.5 rounded-xl bg-brand-card hover:bg-brand-blue/60 border border-brand-border hover:border-brand-cyan/40 transition-all flex items-center gap-2 group shadow-sm">
+                    <i class="fa-brands fa-linkedin text-sky-400 text-sm group-hover:scale-110 transition-transform"></i>
+                    <span class="font-semibold text-white group-hover:text-brand-cyan transition-colors">Omar Alkhammash</span>
+                </a>
+                
+                <div class="px-3 py-1.5 rounded-xl bg-brand-card border border-brand-border flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-user-pen text-brand-cyan text-xs"></i>
+                    <span class="font-semibold text-white">Abdulrahman Soliman</span>
+                </div>
+
+                <a href="https://www.linkedin.com/in/hassan-alahmed-192a61336" target="_blank" class="px-3 py-1.5 rounded-xl bg-brand-card hover:bg-brand-blue/60 border border-brand-border hover:border-brand-cyan/40 transition-all flex items-center gap-2 group shadow-sm">
+                    <i class="fa-brands fa-linkedin text-sky-400 text-sm group-hover:scale-110 transition-transform"></i>
+                    <span class="font-semibold text-white group-hover:text-brand-cyan transition-colors">Hassan Alahmed</span>
+                </a>
+
+                <span class="hidden sm:inline text-slate-600">|</span>
+                
+                <div class="px-3 py-1.5 rounded-xl bg-brand-accent/10 border border-brand-accent/30 text-brand-accent flex items-center gap-1.5 text-xs font-medium">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    <span>Mentor: <strong>Dr. Kerven Durdymyradov</strong></span>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#demos" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-cyan to-teal-500 hover:from-teal-400 hover:to-brand-cyan text-brand-dark font-bold text-sm shadow-lg shadow-brand-cyan/20 transition-all transform hover:-translate-y-0.5 flex items-center gap-2">
+                    <i class="fa-solid fa-headphones-simple text-base"></i>
+                    <span>Listen to Speech Demos</span>
+                </a>
+                <a href="reports/Fusion_JEPA_IEEE_Conference.pdf" target="_blank" class="px-6 py-3.5 rounded-xl bg-brand-card hover:bg-brand-card/80 text-white font-semibold text-sm border border-brand-border hover:border-brand-cyan/50 transition-all flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-file-pdf text-red-400"></i>
+                    <span>IEEE Conference PDF</span>
+                </a>
+                <a href="reports/Fusion_JEPA_KAUST_Report.pdf" target="_blank" class="px-6 py-3.5 rounded-xl bg-brand-card hover:bg-brand-card/80 text-white font-semibold text-sm border border-brand-border hover:border-brand-cyan/50 transition-all flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-book text-brand-cyan"></i>
+                    <span>KAUST Lab Report (14p)</span>
+                </a>
+                <a href="reports/Fusion_JEPA_Presentation.pdf" target="_blank" class="px-6 py-3.5 rounded-xl bg-brand-card hover:bg-brand-card/80 text-white font-semibold text-sm border border-brand-border hover:border-brand-cyan/50 transition-all flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-display text-brand-accent"></i>
+                    <span>Slides (15p)</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Core Highlights Banner (Option 3: Studio-Grade 44.1 kHz Synthesis) -->
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 mb-20 relative z-20">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div class="glass-card p-5 rounded-2xl">
+                <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-music text-lg"></i>
+                </div>
+                <h3 class="text-base font-bold text-white mb-1.5">High-Fidelity 44.1 kHz Synthesis</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Generates 128-band Mel-spectrograms natively aligned with BigVGAN v2 neural vocoding, yielding studio-quality speech free from robotic artifacts.
+                </p>
+            </div>
+            
+            <div class="glass-card p-5 rounded-2xl">
+                <div class="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-arrows-split-up-and-left text-lg"></i>
+                </div>
+                <h3 class="text-base font-bold text-white mb-1.5">Continuous Flow Matching</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Replaces blurry pixel-level $L_1/L_2$ regression with vector velocity field modeling, preserving crisp high-frequency formants.
+                </p>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl">
+                <div class="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-language text-lg"></i>
+                </div>
+                <h3 class="text-base font-bold text-white mb-1.5">Low-Resource Arabic (MSA)</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Captures unvocalized Arabic nuances, geminates (<em>Shaddah</em>), and emphatic consonants with &lt; 4 hours of studio data.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-brand-border/40">
+        <div class="text-center max-w-3xl mx-auto mb-12">
+            <span class="text-xs font-bold text-brand-cyan tracking-wider uppercase">System Design</span>
+            <h2 class="text-2xl sm:text-4xl font-extrabold text-white mt-1 mb-4">Fusion-JEPA Multimodal Architecture</h2>
+            <p class="text-sm text-slate-300 leading-relaxed">
+                A unified architecture coupling a self-supervised teacher-student latent prediction objective with continuous conditional flow matching.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-6 flex justify-center">
+                <div class="glass-card p-3 rounded-2xl shadow-2xl relative group overflow-hidden bg-white">
+                    <img src="images/model.png" alt="Fusion-JEPA Architecture Diagram" class="w-full max-h-[640px] object-contain rounded-xl">
+                    <div class="absolute inset-0 bg-brand-dark/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm rounded-xl">
+                        <a href="images/model.png" target="_blank" class="px-4 py-2 rounded-lg bg-brand-cyan text-brand-dark font-bold text-xs shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> View Full Resolution
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-6 space-y-4">
+                <div class="glass-card p-4 rounded-xl border-l-4 border-l-amber-500">
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-xs flex items-center justify-center font-bold">1</span>
+                        Context & Target Encoders (&phi;, &phi;&#772;)
+                    </h4>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Unmasked acoustic patches are processed by the Context Encoder, while the full spectrogram is encoded by an Exponential Moving Average (EMA, &alpha;=0.9999) Target teacher network with stop-gradients.
+                    </p>
+                </div>
+
+                <div class="glass-card p-4 rounded-xl border-l-4 border-l-emerald-500">
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs flex items-center justify-center font-bold">2</span>
+                        MM-DiT Predictor & 1D RoPE Attention
+                    </h4>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Joint multimodal transformer layers concatenate phonemic text tokens and acoustic representations in self-attention, with 1D Rotary Position Embeddings ensuring length-invariant temporal conditioning.
+                    </p>
+                </div>
+
+                <div class="glass-card p-4 rounded-xl border-l-4 border-l-sky-500">
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 text-xs flex items-center justify-center font-bold">3</span>
+                        Dual Self-Supervised & Flow Objectives
+                    </h4>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Optimized simultaneously via a Masked JEPA Latent Prediction Loss (Smooth L1 regression) and a Continuous Conditional Flow Matching velocity loss.
+                    </p>
+                </div>
+
+                <div class="glass-card p-4 rounded-xl border-l-4 border-l-teal-500">
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-1">
+                        <span class="w-5 h-5 rounded-full bg-teal-500/20 text-teal-400 text-xs flex items-center justify-center font-bold">4</span>
+                        BigVGAN v2 Neural Vocoding (44.1 kHz)
+                    </h4>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Continuous 128-band Mel-spectrograms are decoded into high-fidelity 44.1kHz speech waveforms using anti-aliased periodic Snake activations.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Audio Demos Section -->
+    <section id="demos" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-brand-border/40">
+        <div class="text-center max-w-3xl mx-auto mb-10">
+            <span class="text-xs font-bold text-brand-cyan tracking-wider uppercase">Empirical Verification</span>
+            <h2 class="text-2xl sm:text-4xl font-extrabold text-white mt-1 mb-3">Speech Synthesis Benchmark Demos</h2>
+            <p class="text-sm text-slate-300">
+                Side-by-side comparison of <strong>Ground Truth studio recordings</strong> versus <strong>Fusion-JEPA generated speech</strong> with 44.1kHz BigVGAN vocoding.
+            </p>
+
+            <div class="inline-flex p-1.5 rounded-xl bg-brand-card border border-brand-border mt-8 gap-2">
+                <button id="tab-ar-btn" onclick="switchLanguage('ar')" class="px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-brand-cyan text-brand-dark shadow-md flex items-center gap-2">
+                    <span>🇸🇦</span> Modern Standard Arabic (ASC)
+                </button>
+                <button id="tab-en-btn" onclick="switchLanguage('en')" class="px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-300 hover:text-white flex items-center gap-2">
+                    <span>🇬🇧</span> English Benchmark (LJSpeech)
+                </button>
+            </div>
+        </div>
+
+        <!-- ARABIC SAMPLES CONTAINER -->
+        <div id="arabic-samples" class="space-y-6">
+            
+            <!-- Arabic Sample 1 -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border/40">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 font-mono text-xs font-bold border border-amber-500/30">Arabic Sample 1</span>
+                        <span class="text-xs font-semibold text-slate-300">Modern Standard Arabic (Studio Single-Speaker)</span>
+                    </div>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-layer-group text-brand-cyan mr-1"></i> Cultural & Music Domain</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-brand-dark/70 border border-brand-border/50 mb-5">
+                    <div class="text-right font-arabic text-lg sm:text-xl font-bold text-emerald-300 leading-loose" dir="rtl">
+                        « وَتَتَضَمَّنُ حَفَلَاتٍ لِمُوسِيقَى الْجَازِ يُحْيِيهَا فَنَّانُونَ تُونِسِيُّونَ... »
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="p-3.5 rounded-xl bg-brand-navy/60 border border-brand-border">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Ground Truth (44.1kHz Studio)
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">Halabi Corpus</span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/arabic/gt_80.wav" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles text-brand-accent"></i> Fusion-JEPA Generated
+                            </span>
+                            <span class="text-[10px] font-mono text-brand-cyan font-semibold">MM-DiT + CFM</span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/arabic/gen_80.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+
+                <details class="group mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-400 hover:text-brand-cyan flex items-center gap-1.5 transition select-none">
+                        <i class="fa-solid fa-chart-simple text-brand-accent"></i>
+                        <span>Inspect Mel-Spectrogram Alignment Plot (128 Bins)</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 p-2 rounded-xl bg-brand-dark/90 border border-brand-border flex justify-center">
+                        <img src="images/mel_arabic_80.png" alt="Mel Spectrogram Arabic 1" class="max-w-full rounded-lg shadow-lg">
+                    </div>
+                </details>
+            </div>
+
+            <!-- Arabic Sample 2 -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border/40">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 font-mono text-xs font-bold border border-amber-500/30">Arabic Sample 2</span>
+                        <span class="text-xs font-semibold text-slate-300">Modern Standard Arabic (News / Narrative Utterance)</span>
+                    </div>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-newspaper text-brand-cyan mr-1"></i> Multi-clause Numbers & Pauses</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-brand-dark/70 border border-brand-border/50 mb-5">
+                    <div class="text-right font-arabic text-lg sm:text-xl font-bold text-emerald-300 leading-loose" dir="rtl">
+                        « وَلَمْ تُوَجَّهْ لِلشَّامِي - أَلْمُضْرِبِ عَنِ الطَّعَامِ لِأَكْثَرَ مِنْ مِئَةٍ وَأَرْبَعَةٍ... »
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="p-3.5 rounded-xl bg-brand-navy/60 border border-brand-border">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Ground Truth (44.1kHz Studio)
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">Halabi Corpus</span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/arabic/gt_393.wav" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles text-brand-accent"></i> Fusion-JEPA Generated
+                            </span>
+                            <span class="text-[10px] font-mono text-brand-cyan font-semibold">MM-DiT + CFM</span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/arabic/gen_393.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+
+                <details class="group mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-400 hover:text-brand-cyan flex items-center gap-1.5 transition select-none">
+                        <i class="fa-solid fa-chart-simple text-brand-accent"></i>
+                        <span>Inspect Mel-Spectrogram Alignment Plot (128 Bins)</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 p-2 rounded-xl bg-brand-dark/90 border border-brand-border flex justify-center">
+                        <img src="images/mel_arabic_393.png" alt="Mel Spectrogram Arabic 2" class="max-w-full rounded-lg shadow-lg">
+                    </div>
+                </details>
+            </div>
+
+            <!-- Arabic Sample 3 -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border/40">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 font-mono text-xs font-bold border border-amber-500/30">Arabic Sample 3</span>
+                        <span class="text-xs font-semibold text-slate-300">Modern Standard Arabic (Topical Segment)</span>
+                    </div>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-notes-medical text-brand-cyan mr-1"></i> Emphatic Consonants & Shaddah</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-brand-dark/70 border border-brand-border/50 mb-5">
+                    <div class="text-right font-arabic text-lg sm:text-xl font-bold text-emerald-300 leading-loose" dir="rtl">
+                        « إِنْتَشَرَتْ فِي الْآوِنَةِ الْأَخِيرَةِ مَرَاكِزُ الطِّبِّ الشَّعْبِيِّ - أَوِ الطِّبِّ... »
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="p-3.5 rounded-xl bg-brand-navy/60 border border-brand-border">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Ground Truth (44.1kHz Studio)
+                            </span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/arabic/gt_689.wav" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles text-brand-accent"></i> Fusion-JEPA Generated
+                            </span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/arabic/gen_689.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+
+                <details class="group mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-400 hover:text-brand-cyan flex items-center gap-1.5 transition select-none">
+                        <i class="fa-solid fa-chart-simple text-brand-accent"></i>
+                        <span>Inspect Mel-Spectrogram Alignment Plot (128 Bins)</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 p-2 rounded-xl bg-brand-dark/90 border border-brand-border flex justify-center">
+                        <img src="images/mel_arabic_689.png" alt="Mel Spectrogram Arabic 3" class="max-w-full rounded-lg shadow-lg">
+                    </div>
+                </details>
+            </div>
+
+        </div>
+
+        <!-- ENGLISH SAMPLES CONTAINER -->
+        <div id="english-samples" class="space-y-6 hidden">
+            
+            <!-- English Sample 1 -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border/40">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-300 font-mono text-xs font-bold border border-sky-500/30">English Sample 1</span>
+                        <span class="text-xs font-semibold text-slate-300">English Female Speaker (LJSpeech)</span>
+                    </div>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-book-open text-brand-cyan mr-1"></i> Art & Typography Passage</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-brand-dark/70 border border-brand-border/50 mb-5">
+                    <div class="text-base sm:text-lg font-medium text-slate-100">
+                        “this is best furthered by the avoidance of irrational swellings and spiky projections...”
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="p-3.5 rounded-xl bg-brand-navy/60 border border-brand-border">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Ground Truth (44.1kHz Studio)
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">LJSpeech-1.1</span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/english/gt_71.wav" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles text-brand-accent"></i> Fusion-JEPA Generated
+                            </span>
+                            <span class="text-[10px] font-mono text-brand-cyan font-semibold">MM-DiT + CFM</span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/english/gen_71.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+
+                <details class="group mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-400 hover:text-brand-cyan flex items-center gap-1.5 transition select-none">
+                        <i class="fa-solid fa-chart-simple text-brand-accent"></i>
+                        <span>Inspect Mel-Spectrogram Alignment Plot (128 Bins)</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 p-2 rounded-xl bg-brand-dark/90 border border-brand-border flex justify-center">
+                        <img src="images/mel_english_71.png" alt="Mel Spectrogram English 1" class="max-w-full rounded-lg shadow-lg">
+                    </div>
+                </details>
+            </div>
+
+            <!-- English Sample 2 -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border/40">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-300 font-mono text-xs font-bold border border-sky-500/30">English Sample 2</span>
+                        <span class="text-xs font-semibold text-slate-300">English Female Speaker (LJSpeech)</span>
+                    </div>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-comment-dots text-brand-cyan mr-1"></i> Multi-clause Narrative</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-brand-dark/70 border border-brand-border/50 mb-5">
+                    <div class="text-base sm:text-lg font-medium text-slate-100">
+                        “Failing any of these methods, seeing that straw was forbidden for fear of fire...”
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="p-3.5 rounded-xl bg-brand-navy/60 border border-brand-border">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Ground Truth (44.1kHz Studio)
+                            </span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/english/gt_337.wav" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles text-brand-accent"></i> Fusion-JEPA Generated
+                            </span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/english/gen_337.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+
+                <details class="group mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-400 hover:text-brand-cyan flex items-center gap-1.5 transition select-none">
+                        <i class="fa-solid fa-chart-simple text-brand-accent"></i>
+                        <span>Inspect Mel-Spectrogram Alignment Plot (128 Bins)</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 p-2 rounded-xl bg-brand-dark/90 border border-brand-border flex justify-center">
+                        <img src="images/mel_english_337.png" alt="Mel Spectrogram English 2" class="max-w-full rounded-lg shadow-lg">
+                    </div>
+                </details>
+            </div>
+
+            <!-- English Sample 3 -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border/40">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-300 font-mono text-xs font-bold border border-sky-500/30">English Sample 3</span>
+                        <span class="text-xs font-semibold text-slate-300">English Female Speaker (LJSpeech)</span>
+                    </div>
+                    <span class="text-xs text-slate-400"><i class="fa-solid fa-align-left text-brand-cyan mr-1"></i> Dialogue / Quote Sentence</span>
+                </div>
+
+                <div class="p-4 rounded-xl bg-brand-dark/70 border border-brand-border/50 mb-5">
+                    <div class="text-base sm:text-lg font-medium text-slate-100">
+                        “In the crowd, all of them persons who had &ldquo;no other avocation or mode of livelihood...”
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="p-3.5 rounded-xl bg-brand-navy/60 border border-brand-border">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Ground Truth (44.1kHz Studio)
+                            </span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/english/gt_707.wav" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-brand-cyan flex items-center gap-1.5">
+                                <i class="fa-solid fa-wand-magic-sparkles text-brand-accent"></i> Fusion-JEPA Generated
+                            </span>
+                        </div>
+                        <audio controls class="w-full h-10 rounded-lg" preload="metadata">
+                            <source src="audio/english/gen_707.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+
+                <details class="group mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-400 hover:text-brand-cyan flex items-center gap-1.5 transition select-none">
+                        <i class="fa-solid fa-chart-simple text-brand-accent"></i>
+                        <span>Inspect Mel-Spectrogram Alignment Plot (128 Bins)</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="mt-3 p-2 rounded-xl bg-brand-dark/90 border border-brand-border flex justify-center">
+                        <img src="images/mel_english_707.png" alt="Mel Spectrogram English 3" class="max-w-full rounded-lg shadow-lg">
+                    </div>
+                </details>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Downloadable Reports & Papers Section -->
+    <section id="reports" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-brand-border/40">
+        <div class="text-center max-w-3xl mx-auto mb-12">
+            <span class="text-xs font-bold text-brand-cyan tracking-wider uppercase">Publications & Artifacts</span>
+            <h2 class="text-2xl sm:text-4xl font-extrabold text-white mt-1 mb-3">Research Papers & Presentation</h2>
+            <p class="text-sm text-slate-300">
+                Access the complete documentation, peer-reviewed format conference manuscript, comprehensive lab report, and presentation slides.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- IEEE Conference Card -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between border-t-4 border-t-red-500">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-2.5 py-1 rounded-md bg-red-500/20 text-red-400 font-bold text-xs">IEEE Format</span>
+                        <span class="text-xs text-slate-400">6 Pages • 2 Columns</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Conference Paper</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        Complete research paper with mathematical derivations, related work, experimental methodology, and quantitative analysis.
+                    </p>
+                </div>
+                <a href="reports/Fusion_JEPA_IEEE_Conference.pdf" target="_blank" class="w-full py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs border border-red-500/30 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download IEEE Paper (PDF)
+                </a>
+            </div>
+
+            <!-- KAUST Lab Report Card -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between border-t-4 border-t-brand-cyan">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-2.5 py-1 rounded-md bg-brand-cyan/20 text-brand-cyan font-bold text-xs">Technical Report</span>
+                        <span class="text-xs text-slate-400">14 Pages • Full Report</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">KAUST Lab Report</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        In-depth technical report including code listings, hyperparameter configurations, Slurm cluster recipes, and extended analysis.
+                    </p>
+                </div>
+                <a href="reports/Fusion_JEPA_KAUST_Report.pdf" target="_blank" class="w-full py-2.5 rounded-xl bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan font-bold text-xs border border-brand-cyan/30 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download KAUST Report (PDF)
+                </a>
+            </div>
+
+            <!-- Beamer Presentation Card -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between border-t-4 border-t-brand-accent">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-2.5 py-1 rounded-md bg-brand-accent/20 text-brand-accent font-bold text-xs">Beamer Slides</span>
+                        <span class="text-xs text-slate-400">15 Slides • Widescreen 16:9</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Final Presentation</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        Official project defense slides structured into Problem Statement, Methodology, Verification Benchmark, and Future Horizons.
+                    </p>
+                </div>
+                <a href="reports/Fusion_JEPA_Presentation.pdf" target="_blank" class="w-full py-2.5 rounded-xl bg-brand-accent/20 hover:bg-brand-accent/30 text-brand-accent font-bold text-xs border border-brand-accent/30 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Slides (PDF)
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Citation & BibTeX Section -->
+    <section id="citation" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-brand-border/40">
+        <div class="glass-card p-6 sm:p-8 rounded-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-quote-left text-brand-cyan text-lg"></i>
+                    <h3 class="text-lg font-bold text-white">BibTeX Citation</h3>
+                </div>
+                <button onclick="copyBibTeX()" id="copy-btn" class="px-3 py-1.5 rounded-lg bg-brand-card hover:bg-brand-blue text-xs font-semibold text-slate-300 border border-brand-border flex items-center gap-1.5 transition">
+                    <i class="fa-regular fa-copy"></i>
+                    <span id="copy-btn-text">Copy BibTeX</span>
+                </button>
+            </div>
+            
+            <pre class="p-4 rounded-xl bg-brand-dark/90 border border-brand-border font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed" id="bibtex-text"><code>@article{alkhammash2026fusionjepa,
+  title={Fusion-JEPA: Expressive, Low-Resource Text-to-Speech via Joint-Embedding Predictive Architecture, MM-DiT, and Continuous Flow Matching},
+  author={Alkhammash, Omar and Soliman, Abdulrahman and Alahmed, Hassan and Durdymyradov, Kerven},
+  journal={KAUST Academy AI Project Proceedings},
+  year={2026},
+  month={August},
+  url={https://github.com/OmarA32/Fusion-JEPA-TTS}
+}</code></pre>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-brand-border/60 py-10 mt-16 text-center text-xs text-slate-400">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-white">Fusion-JEPA</span>
+                <span>•</span>
+                <span>KAUST Academy & King Khalid University</span>
+            </div>
+            <div class="flex items-center gap-4 text-slate-500">
+                <a href="https://github.com/OmarA32/Fusion-JEPA-TTS" class="hover:text-brand-cyan flex items-center gap-1"><i class="fa-brands fa-github"></i> GitHub</a>
+                <span>•</span>
+                <a href="https://www.linkedin.com/in/omar-alkhammash-104b9b350" target="_blank" class="hover:text-brand-cyan flex items-center gap-1"><i class="fa-brands fa-linkedin text-sky-400"></i> Omar</a>
+                <span>•</span>
+                <a href="https://www.linkedin.com/in/hassan-alahmed-192a61336" target="_blank" class="hover:text-brand-cyan flex items-center gap-1"><i class="fa-brands fa-linkedin text-sky-400"></i> Hassan</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Interactivity -->
+    <script>
+        function switchLanguage(lang) {
+            const arContainer = document.getElementById('arabic-samples');
+            const enContainer = document.getElementById('english-samples');
+            const arBtn = document.getElementById('tab-ar-btn');
+            const enBtn = document.getElementById('tab-en-btn');
+
+            if (lang === 'ar') {
+                arContainer.classList.remove('hidden');
+                enContainer.classList.add('hidden');
+                
+                arBtn.className = "px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-brand-cyan text-brand-dark shadow-md flex items-center gap-2";
+                enBtn.className = "px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-300 hover:text-white flex items-center gap-2";
+            } else {
+                arContainer.classList.add('hidden');
+                enContainer.classList.remove('hidden');
+                
+                enBtn.className = "px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-brand-cyan text-brand-dark shadow-md flex items-center gap-2";
+                arBtn.className = "px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-300 hover:text-white flex items-center gap-2";
+            }
+        }
+
+        function copyBibTeX() {
+            const bibText = document.getElementById('bibtex-text').innerText;
+            navigator.clipboard.writeText(bibText).then(() => {
+                const btnText = document.getElementById('copy-btn-text');
+                btnText.innerText = "Copied!";
+                setTimeout(() => {
+                    btnText.innerText = "Copy BibTeX";
+                }, 2500);
+            });
+        }
+
+        document.addEventListener('play', function(e){
+            const audios = document.getElementsByTagName('audio');
+            for(let i = 0, len = audios.length; i < len; i++){
+                if(audios[i] != e.target){
+                    audios[i].pause();
+                }
+            }
+        }, true);
+    </script>
+</body>
+</html>
