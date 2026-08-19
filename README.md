@@ -26,6 +26,12 @@
 
 ## 🏛 Architecture
 
+<p align="center">
+  <img src="assets/model_architecture.png" alt="Fusion-JEPA Architecture Diagram" width="92%">
+</p>
+
+### System Dataflow
+
 ```
                     ┌────────────────────────┐
                     │ Raw Audio Spectrogram  │
