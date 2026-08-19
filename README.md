@@ -37,7 +37,13 @@
 
 Listen to side-by-side comparisons of **Ground Truth studio recordings** vs. **Fusion-JEPA generated speech** on our interactive GitHub Pages showcase:
 
-**[https://omara32.github.io/Fusion-JEPA-TTS/](https://omara32.github.io/Fusion-JEPA-TTS/)**
+<p align="center">
+  <a href="https://omara32.github.io/Fusion-JEPA-TTS/">
+    <img src="assets/demo_preview.png" alt="Fusion-JEPA Interactive Audio Showcase" width="92%">
+  </a>
+</p>
+
+**[Explore Live Speech Showcase → https://omara32.github.io/Fusion-JEPA-TTS/](https://omara32.github.io/Fusion-JEPA-TTS/)**
 
 ---
 
