@@ -16,7 +16,7 @@ from models.jepat import JEPAT_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
-def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", vocoder="vocos", save_mel=False, mel_gt=None, cfg_scale=3.0, steps=60):
+def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", save_mel=False, mel_gt=None, cfg_scale=3.0, steps=60):
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         device = torch.device("xpu")
     elif torch.cuda.is_available():
@@ -31,27 +31,26 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         language=lang,
         spec_height=128, 
         spec_width=512,
+        patch_size=16,
         diffloss='flow', 
-        jepaloss='jepa',
-        num_sampling_steps=steps
+        diffloss_d_model=384,
+        cls_token=False, 
+        learnable_pos=True,
+        drop_path_rate=0.0
     ).to(device)
     
     import re
     def get_latest_checkpoint(log_dir):
-        """Finds the most recent checkpoint recursively inside the log directory."""
-        
-        # Priority: For the overfit inference script, ALWAYS load the overfit checkpoint first
-        overfit_path = os.path.join(log_dir, "overfit.ckpt")
-        if os.path.exists(overfit_path):
-            return overfit_path, "ckpt", -1
-            
-        latest_pt = None
-        max_pt_epoch = -1
+        if not os.path.exists(log_dir):
+            return None, None, 0
+
         latest_ckpt = None
         max_ckpt_epoch = -1
-        
-        if os.path.exists(log_dir):
-            for root, dirs, files in os.walk(log_dir):
+        latest_pt = None
+        max_pt_epoch = -1
+
+        for root, dirs, files in os.walk(log_dir):
+            if "checkpoints" in root:
                 for f in files:
                     filepath = os.path.join(root, f)
                     
@@ -74,7 +73,6 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
                                     max_ckpt_epoch = epoch
                                     latest_ckpt = filepath
                             elif f == "last.ckpt":
-                                # last.ckpt takes absolute highest priority
                                 max_ckpt_epoch = 99999999
                                 latest_ckpt = filepath
                         except:
@@ -88,7 +86,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         else:
             return latest_pt, "pt", max_pt_epoch
 
-    log_dir = os.path.join("training_logs", lang)
+    log_dir = os.path.join("training_logs", f"overfit_{lang}")
     found_path, ckpt_type, _ = get_latest_checkpoint(log_dir)
     if found_path and os.path.exists(found_path):
         print(f"Loading weights from {found_path} ({ckpt_type})...")
@@ -96,7 +94,6 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
             ckpt = torch.load(found_path, map_location=device, weights_only=False)
             model.load_state_dict(ckpt['model_state_dict'])
         else:
-            # We must load Lightning checkpoints robustly by stripping 'model.' prefix
             ckpt = torch.load(found_path, map_location=device, weights_only=False)
             state_dict = ckpt['state_dict']
             model_dict = {}
@@ -113,8 +110,8 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         
     model.eval()
 
-    print(f"Loading {vocoder.upper()} Vocoder...")
-    vocoder_instance = VocoderManager(vocoder_type=vocoder, device=device)
+    print("Loading BigVGAN Vocoder...")
+    vocoder_instance = VocoderManager(device=device)
 
     print("Processing Text...")
     try:
@@ -135,7 +132,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
         print(f"Error processing text: {e}")
         return
 
-    text_input = [text] 
+    text_input = [tokens] 
 
     print("Running Diffusion Generation (This may take a minute on CPU)...")
     with torch.no_grad():
@@ -163,15 +160,15 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
                 axes[1].set_title('Generated Mel')
                 plt.tight_layout()
                 plt.savefig(mel_path)
-                plt.close()
             else:
-                plt.figure(figsize=(10, 5))
+                plt.figure(figsize=(10, 4))
                 plt.imshow(gen_mel_np, origin='lower', aspect='auto', cmap='viridis')
-                plt.title('Generated Mel')
+                plt.title('Generated Mel Spectrogram')
                 plt.tight_layout()
                 plt.savefig(mel_path)
-                plt.close()
-            print(f"Saved mel spectrogram to {mel_path}")
+                
+            plt.close()
+            print(f"Saved Mel Spectrogram plot to: {mel_path}")
         except ImportError:
             print("WARNING: matplotlib is not installed. Cannot save mel spectrogram image. Please run: pip install matplotlib")
 
@@ -189,7 +186,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     import scipy.io.wavfile as wavfile
     import numpy as np
     
-    sample_rate = 44100 if args.vocoder == 'bigvgan' else 24000
+    sample_rate = 44100
     audio_np = audio_waveform.squeeze().cpu().numpy()
     
     audio_np = audio_np / max(abs(audio_np).max(), 1e-8)
@@ -205,7 +202,6 @@ if __name__ == "__main__":
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language of the model.")
     parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
     parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
-    parser.add_argument('--vocoder', type=str, default='bigvgan', choices=['vocos', 'bigvgan'], help="Vocoder to use.")
     parser.add_argument('--cfg-scale', type=float, default=7.0, help="Classifier-Free Guidance scale (1.0 disables it).")
     parser.add_argument('--steps', type=int, default=60, help="Number of diffusion steps for Flow Matching.")
     parser.add_argument('--save-mel', action='store_true', help="Save an image of the mel spectrogram(s)")

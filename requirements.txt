@@ -1,7 +1,6 @@
 torch
 torchaudio
 lightning
-vocos
 datasets>=3.0.0
 soundfile
 scipy
