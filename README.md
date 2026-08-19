@@ -1,6 +1,10 @@
-# Audio-JEPA Text-to-Speech (TTS)
+# Fusion-JEPA: Expressive, Low-Resource Text-to-Speech (TTS)
 
-An open-source, dual-language Text-to-Speech (TTS) pipeline leveraging a modified Joint-Embedding Predictive Architecture (JEPA-T). This repository contains the complete infrastructure for training, inference, and cloud synchronization for both English and Arabic audio generation.
+[![Demo](https://img.shields.io/badge/Demo-Interactive_Showcase-teal)](https://omara32.github.io/Fusion-JEPA-TTS/)
+[![Paper](https://img.shields.io/badge/Paper-IEEE_Format-red)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)
+[![Report](https://img.shields.io/badge/Report-KAUST_Lab_Report-blue)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)
+
+An open-source, dual-language Text-to-Speech (TTS) pipeline leveraging a Joint-Embedding Predictive Architecture (JEPA), Multimodal Diffusion Transformer (MM-DiT), and Continuous Flow Matching. This repository contains the complete infrastructure for training, inference, and cloud synchronization for both English and Arabic audio generation.
 
 ## Features
 - **Dual-Language End-to-End TTS**: Full support for both Arabic and English phonetic modeling.
