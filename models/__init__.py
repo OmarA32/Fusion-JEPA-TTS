@@ -1,3 +1,3 @@
-from .jepat import JEPAT_base, JEPAT_huge, JEPAT_large
+from .jepa import JEPA_base, JEPA_huge, JEPA_large
 
-__all__ = ['JEPAT_base', 'JEPAT_huge', 'JEPAT_large']
+__all__ = ['JEPA_base', 'JEPA_huge', 'JEPA_large']

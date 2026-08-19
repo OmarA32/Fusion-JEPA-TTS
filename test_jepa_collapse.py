@@ -1,12 +1,12 @@
 import torch
 import os
-from models.jepat_lightning import JEPATLightning
+from models.jepa_lightning import JEPALightning
 
 def check_jepa_collapse(ckpt_path):
     print(f"Loading checkpoint from: {ckpt_path}")
     
     # Load model
-    model = JEPATLightning(language="english")
+    model = JEPALightning(language="english")
     try:
         ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
         state_dict = ckpt["state_dict"]

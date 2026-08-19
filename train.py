@@ -12,7 +12,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, TQDMProgressBar
 from torch.utils.data import DataLoader
 
 from data.dataset import JEPADataset, jepa_collate_fn
-from models.jepat_lightning import JEPATLightning
+from models.jepa_lightning import JEPALightning
 
 import re
 import json
@@ -206,8 +206,8 @@ def main():
         num_workers=workers
     )
 
-    print("Initializing Lightning JEPAT Model...")
-    model = JEPATLightning(learning_rate=1e-4, language=args.lang)
+    print("Initializing Lightning JEPA Model...")
+    model = JEPALightning(learning_rate=1e-4, language=args.lang)
 
     if args.freeze_jepa:
         print("Freezing JEPA (ViT) backbone! Only the Diffusion MLP will be trained.")

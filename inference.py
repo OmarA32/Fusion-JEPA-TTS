@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-from models.jepat import JEPAT_base
+from models.jepa import JEPA_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
@@ -26,7 +26,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     print(f"Using natively accelerated PyTorch device: {device}")
 
     print("Initializing JEPA-T Model...")
-    model = JEPAT_base(
+    model = JEPA_base(
         in_channels=1, 
         language=lang,
         spec_height=128, 
