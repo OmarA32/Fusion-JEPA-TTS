@@ -10,7 +10,7 @@
 
 ---
 
-## 🌟 Key Innovations
+## Key Innovations
 
 1. **Self-Supervised JEPA Latent Space ($\mathcal{L}_p$):**  
    An Exponential Moving Average (EMA, $\alpha=0.9999$) Target Teacher network guides the Context Encoder in latent space without collapsing or needing large negative contrastive pairs.
@@ -25,7 +25,7 @@
 
 ---
 
-## 🏛 Architecture
+## Architecture
 
 <p align="center">
   <img src="assets/model_architecture.png" alt="Fusion-JEPA Architecture Diagram" width="92%">
@@ -66,15 +66,15 @@
 
 ---
 
-## 🎧 Interactive Audio Demos
+## Interactive Audio Demos
 
 Listen to side-by-side comparisons of **Ground Truth studio recordings** vs. **Fusion-JEPA generated speech** on our interactive GitHub Pages showcase:
 
-👉 **[https://omara32.github.io/Fusion-JEPA-TTS/](https://omara32.github.io/Fusion-JEPA-TTS/)**
+**[https://omara32.github.io/Fusion-JEPA-TTS/](https://omara32.github.io/Fusion-JEPA-TTS/)**
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Installation
 
@@ -139,13 +139,13 @@ python overfit_test.py --lang arabic --epochs 500
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 ├── models/                     # Fusion-JEPA Model Implementations
 │   ├── block.py                # MM-DiT & 1D RoPE Attention Blocks
-│   ├── jepat.py                # Core Fusion-JEPA Architecture
-│   └── jepat_lightning.py      # PyTorch Lightning Module with Lv + Lp loss
+│   ├── jepa.py                 # Core Fusion-JEPA Architecture
+│   └── jepa_lightning.py       # PyTorch Lightning Module with Lv + Lp loss
 ├── data/                       # Dataset Loaders & Tokenizers
 │   ├── dataset.py              # Mel-spectrogram extraction & phoneme tokenization
 │   └── buckwalter.py           # Arabic orthographic transliteration tools
@@ -159,7 +159,7 @@ python overfit_test.py --lang arabic --epochs 500
 
 ---
 
-## 👥 Authors
+## Authors
 
 - **Omar Alkhammash** — King Khalid University / KAUST Academy
 - **Abdulrahman Soliman** — KAUST Academy
@@ -170,7 +170,7 @@ python overfit_test.py --lang arabic --epochs 500
 
 ---
 
-## 🙏 Acknowledgments & Prior Work
+## Acknowledgments & Prior Work
 
 We gratefully acknowledge the foundational open-source models, architectures, and datasets that informed and supported this research:
 
@@ -182,14 +182,14 @@ We gratefully acknowledge the foundational open-source models, architectures, an
 
 ---
 
-## 📄 Publications & Documentation
+## Publications & Documentation
 
-- 📑 **[Research Manuscript (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)**: 6-page IEEE-format conference paper with mathematical derivations and benchmark evaluations.
-- 📘 **[KAUST Lab Report (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)**: 14-page comprehensive technical report with implementation details and Slurm recipes.
-- 📊 **[Presentation Slides (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_Presentation.pdf)**: 15-slide defense presentation.
+- **[Research Manuscript (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_IEEE_Conference.pdf)**: 6-page IEEE-format conference paper with mathematical derivations and benchmark evaluations.
+- **[KAUST Lab Report (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_KAUST_Report.pdf)**: 14-page comprehensive technical report with implementation details and Slurm recipes.
+- **[Presentation Slides (PDF)](https://omara32.github.io/Fusion-JEPA-TTS/reports/Fusion_JEPA_Presentation.pdf)**: 15-slide defense presentation.
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
