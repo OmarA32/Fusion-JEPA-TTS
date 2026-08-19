@@ -145,8 +145,10 @@ python overfit_test.py --lang arabic --epochs 500
 
 ## Acknowledgments & Prior Work
 
-We gratefully acknowledge the foundational open-source models, architectures, and datasets that informed and supported this research:
+We gratefully acknowledge the foundational open-source models, reference codebases, and datasets that made this work possible:
 
+- **D-JEPA Codebase:** [D-JEPA/djepa-imagenet](https://github.com/D-JEPA/djepa-imagenet) (Chen et al.) — which formed the core architecture foundation for generative JEPA latent modeling and dual prediction objectives.
+- **JEPA-T Codebase:** [justin-herry/JEPA-T](https://github.com/justin-herry/JEPA-T) (Wan et al.) — which provided key foundations for text-conditioned multimodal transformer prediction.
 - **JEPA & Self-Supervised Learning:** Yann LeCun (*A Path Towards Autonomous Machine Intelligence*, 2022) and Meta AI's *V-JEPA / I-JEPA*.
 - **Continuous Flow Matching:** Lipman et al., *Flow Matching for Generative Modeling* (2023).
 - **BigVGAN Neural Vocoder:** NVIDIA's [BigVGAN](https://github.com/NVIDIA/BigVGAN) repository (Lee et al., 2024).
