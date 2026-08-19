@@ -147,13 +147,13 @@ python overfit_test.py --lang arabic --epochs 500
 
 We gratefully acknowledge the foundational open-source models, reference codebases, and datasets that made this work possible:
 
-- **D-JEPA Codebase:** [D-JEPA/djepa-imagenet](https://github.com/D-JEPA/djepa-imagenet) (Chen et al.) — which formed the core architecture foundation for generative JEPA latent modeling and dual prediction objectives.
-- **JEPA-T Codebase:** [justin-herry/JEPA-T](https://github.com/justin-herry/JEPA-T) (Wan et al.) — which provided key foundations for text-conditioned multimodal transformer prediction.
-- **JEPA & Self-Supervised Learning:** Yann LeCun (*A Path Towards Autonomous Machine Intelligence*, 2022) and Meta AI's *V-JEPA / I-JEPA*.
-- **Continuous Flow Matching:** Lipman et al., *Flow Matching for Generative Modeling* (2023).
-- **BigVGAN Neural Vocoder:** NVIDIA's [BigVGAN](https://github.com/NVIDIA/BigVGAN) repository (Lee et al., 2024).
-- **Arabic Speech Corpus:** [Nawar Halabi Arabic Speech Corpus](http://en.arabicspeechcorpus.com/) (Halabi, 2016).
-- **English Benchmark:** [LJSpeech-1.1](https://keithito.com/LJ-Speech-Dataset/) (Ito & Johnson, 2017).
+- **D-JEPA Codebase & Formulation:** [D-JEPA/djepa-imagenet](https://github.com/D-JEPA/djepa-imagenet) (Hao Chen et al., *D-JEPA: Denoising with a Joint-Embedding Predictive Architecture*, 2024) — which established the generative JEPA paradigm with dual latent prediction and flow/diffusion objectives.
+- **JEPA-T Architecture:** [justin-herry/JEPA-T](https://github.com/justin-herry/JEPA-T) (Siheng Wan, Jifeng Shen, Justin Herry et al., *JEPA-T: Joint-Embedding Predictive Architecture with Text Fusion*, 2025) — which provided the core architectural foundations for text-conditioned multimodal transformer prediction.
+- **JEPA Theory & Self-Supervised Learning:** Yann LeCun (*A Path Towards Autonomous Machine Intelligence*, 2022) and Meta AI (*I-JEPA / V-JEPA*, Assran et al., 2023; Bardes et al., 2024).
+- **Continuous Flow Matching:** Yaron Lipman, Ricky T. Q. Chen, Heli Ben-Hamu, Maximilian Nickel, Matthew Le (*Flow Matching for Generative Modeling*, ICLR 2023).
+- **BigVGAN Neural Vocoder:** NVIDIA Corporation ([NVIDIA/BigVGAN](https://github.com/NVIDIA/BigVGAN), Sang-gil Lee et al., *BigVGAN-v2: Universal Neural Vocoder with Anti-Aliased Snake Activations*, 2024).
+- **Arabic Speech Corpus:** Dr. Nawar Halabi ([Arabic Speech Corpus](http://en.arabicspeechcorpus.com/), University of Southampton, 2016).
+- **English Benchmark:** Keith Ito and Linda Johnson ([The LJ Speech Dataset](https://keithito.com/LJ-Speech-Dataset/), 2017).
 
 ---
 
