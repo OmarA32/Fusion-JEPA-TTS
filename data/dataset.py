@@ -50,7 +50,16 @@ class JEPADataset(Dataset):
         bigvgan_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "BigVGAN")
         if bigvgan_path not in sys.path:
             sys.path.append(bigvgan_path)
-        from meldataset import mel_spectrogram
+            
+        try:
+            from meldataset import mel_spectrogram
+        except ImportError:
+            import subprocess
+            print("BigVGAN submodule not found. Initializing via git...")
+            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            subprocess.run(["git", "submodule", "update", "--init", "--recursive"], cwd=repo_root)
+            from meldataset import mel_spectrogram
+
         self.jepa_mel_fn = mel_spectrogram
         
         self.mel_kwargs = {

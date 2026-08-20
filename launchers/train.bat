@@ -1,5 +1,9 @@
 @echo off
 cd /d "%~dp0\.."
+if not exist "BigVGAN\meldataset.py" (
+    echo Initializing BigVGAN neural vocoder submodule...
+    git submodule update --init --recursive
+)
 if exist "venv\Scripts\activate.bat" call venv\Scripts\activate.bat
 
 set "args=%*"
