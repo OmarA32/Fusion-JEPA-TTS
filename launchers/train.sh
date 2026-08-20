@@ -1,5 +1,9 @@
 #!/bin/bash
 cd "$(dirname "$0")/.."
+if [ ! -f "BigVGAN/meldataset.py" ]; then
+    echo "Initializing BigVGAN neural vocoder submodule..."
+    git submodule update --init --recursive
+fi
 [ -f "venv/bin/activate" ] && source venv/bin/activate
 
 ARGS="$@"
