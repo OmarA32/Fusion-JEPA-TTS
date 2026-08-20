@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # SLURM submission script for KAUST IBEX Supercomputer -- Audio-JEPA English TTS
-# (3x A100 GPUs, 2600 Epochs, LJSpeech)
+# (1x A100 GPU, 2600 Epochs, LJSpeech)
 # ==============================================================================
 # HOW TO DEPLOY ON IBEX:
 #   1. SSH into the GPU login node: ssh -XY username@glogin.ibex.kaust.edu.sa
@@ -12,15 +12,15 @@
 
 #SBATCH --job-name=jepa_tts_english_2600ep
 #SBATCH --partition=batch
-#SBATCH --gres=gpu:a100:3         # Request 3x NVIDIA A100 GPUs
-#SBATCH --cpus-per-task=32        # Request 32 CPU cores for fast multi-GPU data loading
-#SBATCH --mem=128G                # Request 128GB of RAM
+#SBATCH --gres=gpu:a100:1         # Request 1x NVIDIA A100 GPU
+#SBATCH --cpus-per-task=8         # Request 8 CPU cores for fast data loading
+#SBATCH --mem=64G                 # Request 64GB of RAM
 #SBATCH --time=24:00:00           # 24-hour time limit
 #SBATCH --output=training_logs/ibex_output_%j.txt
 #SBATCH --error=training_logs/ibex_error_%j.txt
 
 echo "=========================================================="
-echo "Starting JEPA TTS Training on 3x A100 GPUs (2,600 Epochs)"
+echo "Starting JEPA TTS Training on 1x A100 GPU (2,600 Epochs)"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Allocated Nodes: $SLURM_JOB_NODELIST"
 echo "=========================================================="
@@ -43,9 +43,9 @@ python -m venv ibex_tts_env --system-site-packages
 source ibex_tts_env/bin/activate
 pip install -r requirements.txt
 
-# 5. Launch PyTorch Lightning Distributed Training
-# 3x A100 GPUs, 2600 Epochs on LJSpeech English Benchmark
-echo "Booting up the Trainer across 3x A100 GPUs for 2,600 Epochs..."
+# 5. Launch PyTorch Lightning Training
+# 1x A100 GPU, 2600 Epochs on LJSpeech English Benchmark
+echo "Booting up the Trainer on 1x A100 GPU for 2,600 Epochs..."
 python train.py --resume --download_latest --lang english --db ljspeech --epochs 2600 --hf_token "$1" --checkpointnum 40
 
 echo "Job Completed!"
