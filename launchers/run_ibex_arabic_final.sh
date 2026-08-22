@@ -5,8 +5,8 @@
 # ==============================================================================
 # HOW TO DEPLOY ON IBEX:
 #   1. SSH into the GPU login node: ssh -XY username@glogin.ibex.kaust.edu.sa
-#   2. Clone the repo: git clone --recursive https://github.com/OmarA32/Audio-JEPA-Arabic-TTS.git
-#   3. cd Audio-JEPA-Arabic-TTS
+#   2. Clone the repo: git clone --recursive https://github.com/OmarA32/Fusion-JEPA-TTS.git
+#   3. cd Fusion-JEPA-TTS
 #   4. Submit this script: sbatch launchers/run_ibex_arabic_final.sh "YOUR_HF_TOKEN_HERE"
 # ==============================================================================
 
@@ -45,7 +45,7 @@ pip install -r requirements.txt
 
 # 5. Launch PyTorch Lightning Distributed Training
 # 4x A100 GPUs, 2600 Epochs on Nawar Halabi Arabic Dataset
-echo "Booting up the Trainer across 4x A100 GPUs for 2,0000 Epochs..."
-python train.py --resume --download_latest --lang arabic --db nawar_halabi --epochs 20000 --hf_token "$1" --checkpointnum 100
+echo "Booting up the Trainer across 4x A100 GPUs for 2,600 Epochs..."
+python train.py --resume --download_latest --lang arabic --db nawar_halabi --epochs 2600 --hf_token "$1" --checkpointnum 150
 
 echo "Job Completed!"
