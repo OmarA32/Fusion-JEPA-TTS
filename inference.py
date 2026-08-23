@@ -243,4 +243,13 @@ if __name__ == "__main__":
     else:
         mel_gt = None
     
-    generate_audio(args.text, args.lang, args.db, args.output, args.vocoder, args.save_mel, mel_gt, args.cfg_scale, args.steps)
+    generate_audio(
+        text=args.text, 
+        lang=args.lang, 
+        db=args.db, 
+        output_path=args.output, 
+        save_mel=args.save_mel, 
+        mel_gt=mel_gt, 
+        cfg_scale=args.cfg_scale, 
+        steps=args.steps
+    )
