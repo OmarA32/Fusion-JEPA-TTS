@@ -155,6 +155,10 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     
     print(f"Raw Generated Mel Shape: {generated_mel.shape}")
     
+    # Ensure output directory exists
+    out_dir = os.path.dirname(os.path.abspath(output_path))
+    os.makedirs(out_dir, exist_ok=True)
+    
     if save_mel:
         try:
             import matplotlib.pyplot as plt
@@ -203,7 +207,7 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     audio_int16 = (audio_np * 32767).astype(np.int16)
     
     wavfile.write(output_path, sample_rate, audio_int16)
-    print("Done!")
+    print(f"Synthesis Complete! Audio saved to: {output_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="JEPA TTS Inference")
@@ -227,9 +231,9 @@ if __name__ == "__main__":
         print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
         sys.exit(1)
         
+    os.makedirs("test_results", exist_ok=True)
     if args.index is not None:
         from data.dataset import JEPADataset
-        import os
         print(f"Loading {args.lang.upper()} {args.db.upper()} test dataset to fetch index {args.index}...")
         test_dataset = JEPADataset(split="test", lang=args.lang, db=args.db)
         if args.index >= len(test_dataset):
@@ -247,10 +251,11 @@ if __name__ == "__main__":
             item_processed = test_dataset[args.index]
             mel_gt = item_processed['mel_tgt']
         
-        os.makedirs("test_results", exist_ok=True)
         args.output = f"test_results/inference_index_{args.index}.wav"
     else:
         mel_gt = None
+        if not os.path.dirname(args.output):
+            args.output = os.path.join("test_results", args.output)
     
     generate_audio(
         text=args.text, 
