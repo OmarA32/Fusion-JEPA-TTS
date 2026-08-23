@@ -40,6 +40,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload latest JEPA-TTS weights to Hugging Face")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language model to upload")
     parser.add_argument("--token", type=str, default=None, help="Hugging Face Write Token (optional if hf_config.json exists)")
+    parser.add_argument("--ckpt", type=str, default=None, help="Explicit path to a .ckpt or .pt model checkpoint to upload")
     args = parser.parse_args()
     
     # 1. Resolve Token
@@ -52,23 +53,31 @@ if __name__ == "__main__":
     repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
     
     # 3. Resolve Checkpoint
-    from train import get_latest_checkpoint
-    log_dir = os.path.join("training_logs", args.lang)
-    latest_ckpt, ckpt_type, max_epoch = get_latest_checkpoint(log_dir)
+    if args.ckpt and os.path.exists(args.ckpt):
+        latest_ckpt = args.ckpt
+        max_epoch = 99999999
+    else:
+        from train import get_latest_checkpoint
+        log_dir = os.path.join("training_logs", args.lang)
+        latest_ckpt, ckpt_type, max_epoch = get_latest_checkpoint(log_dir)
     
-    if not latest_ckpt:
-        print(f"[ERROR] No checkpoints found in {log_dir} to upload!")
+    if not latest_ckpt or not os.path.exists(latest_ckpt):
+        print(f"[ERROR] No valid checkpoints found to upload!")
         sys.exit(1)
         
-    # Add 1 to max_epoch to convert PyTorch Lightning's 0-indexed epoch into a human-readable number (matching the auto-uploader)
+    # Add 1 to max_epoch to convert PyTorch Lightning's 0-indexed epoch into a human-readable 1-indexed number
     epoch_str = f"Epoch {max_epoch + 1}"
-    if max_epoch == 99999999: # last.ckpt indicator
+    if max_epoch == 99999999 or "last.ckpt" in latest_ckpt:
         try:
             import torch
             ckpt = torch.load(latest_ckpt, map_location="cpu", weights_only=False)
-            real_epoch = ckpt.get("epoch", "Latest")
-            epoch_str = f"Epoch {real_epoch}"
-        except:
+            real_epoch = ckpt.get("epoch", None)
+            if real_epoch is not None and isinstance(real_epoch, int):
+                # PyTorch Lightning stores 0-indexed epoch, so add +1 for human-readable count
+                epoch_str = f"Epoch {real_epoch + 1}"
+            else:
+                epoch_str = "Latest Epoch"
+        except Exception:
             epoch_str = "Latest Epoch"
             
     commit_message = f"Manual upload from {epoch_str}"
