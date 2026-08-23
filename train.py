@@ -245,10 +245,12 @@ def main():
         repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
         callbacks_list.append(HuggingFaceUploadCallback(every_n_epochs=args.checkpointnum, repo_id=repo_id, log_dir=log_dir))
 
-    print("Configuring Lightning Trainer...")
-    
-    # Robust Multi-GPU Strategy
-    lightning_strategy = "ddp" if num_gpus > 1 else "auto"
+    # Robust Multi-GPU Strategy with DDP support for EMA Target Teacher parameters
+    if num_gpus > 1:
+        from lightning.pytorch.strategies import DDPStrategy
+        lightning_strategy = DDPStrategy(find_unused_parameters=True)
+    else:
+        lightning_strategy = "auto"
     
     trainer = L.Trainer(
         max_epochs=args.epochs,
