@@ -46,6 +46,6 @@ pip install -r requirements.txt
 # 5. Launch PyTorch Lightning Distributed Training
 # 3x A100 GPUs, 2600 Epochs on LJSpeech English Benchmark
 echo "Booting up the Trainer across 3x A100 GPUs for 2,600 Epochs..."
-python train.py --resume --download_latest --lang english --db ljspeech --epochs 2600 --hf_token "$1" --checkpointnum 40
+python train.py --resume --download_latest --lang english --db ljspeech --epochs 2600 --hf_token "$1" --checkpointnum 80
 
 echo "Job Completed!"
