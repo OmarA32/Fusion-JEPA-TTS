@@ -1,4 +1,5 @@
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import sys
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -255,7 +256,7 @@ def main():
     )
 
     print("Initializing Lightning JEPA Model...")
-    model = JEPALightning(learning_rate=1e-4, language=args.lang)
+    model = JEPALightning(learning_rate=1e-4, language=args.lang, grad_checkpointing=True)
 
     if args.freeze_jepa:
         print("Freezing JEPA (ViT) backbone! Only the Diffusion MLP will be trained.")
