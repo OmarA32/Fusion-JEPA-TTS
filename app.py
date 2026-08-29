@@ -38,41 +38,203 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Sleek Dark / Purple Theme
+# ----------------------------------------------------------------------------------------
+# High-End Custom CSS (Modern Glassmorphism & Sleek Dark Styling)
+# ----------------------------------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Global Card & Header Styles */
+    /* Dark Theme Core Styles */
+    .stApp {
+        background-color: #0b0d13;
+        color: #e2e8f0;
+    }
+    
+    /* Header Gradient & Typography */
     .main-title {
-        font-size: 2.2rem;
+        font-size: 2.3rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #9d4edd, #ff7b00);
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #c084fc 0%, #38bdf8 50%, #fb923c 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.2rem;
     }
     .sub-title {
-        font-size: 1.05rem;
-        color: #a0a0a0;
+        font-size: 1.0rem;
+        color: #94a3b8;
+        margin-bottom: 1.0rem;
+    }
+    
+    /* System Status Badges */
+    .badge-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
         margin-bottom: 1.2rem;
     }
     .badge {
-        display: inline-block;
-        padding: 0.25rem 0.65rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.75rem;
         border-radius: 9999px;
         font-size: 0.8rem;
         font-weight: 600;
-        margin-right: 0.4rem;
-        margin-bottom: 0.8rem;
+        letter-spacing: 0.2px;
     }
-    .badge-gpu { background-color: #2d124d; color: #d8b4fe; border: 1px solid #7c3aed; }
-    .badge-arch { background-color: #1e293b; color: #94a3b8; border: 1px solid #475569; }
-    .badge-sr { background-color: #064e3b; color: #6ee7b7; border: 1px solid #059669; }
+    .badge-gpu { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
+    .badge-arch { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+    .badge-sr { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.35); }
+    .badge-ckpt { background: rgba(251, 146, 60, 0.15); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.35); }
+
+    /* Card Panels */
+    .ui-card {
+        background: #131620;
+        border: 1px solid #232736;
+        border-radius: 12px;
+        padding: 1.1rem 1.2rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .card-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #f1f5f9;
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    /* Primary Generate Button */
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, #9333ea 0%, #d97706 100%) !important;
+        color: #ffffff !important;
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        padding: 0.75rem 1.5rem !important;
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(147, 51, 234, 0.35) !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 22px rgba(147, 51, 234, 0.55) !important;
+    }
+
+    /* Text Area Styling */
     .stTextArea textarea {
         font-size: 1.15rem !important;
-        border-radius: 8px !important;
+        line-height: 1.6 !important;
+        border-radius: 10px !important;
+        background-color: #0f121a !important;
+        border: 1px solid #282d3f !important;
+        color: #f8fafc !important;
+    }
+    .stTextArea textarea:focus {
+        border-color: #9333ea !important;
+        box-shadow: 0 0 0 1px #9333ea !important;
+    }
+
+    /* Metric Boxes */
+    [data-testid="stMetricValue"] {
+        font-size: 1.6rem !important;
+        color: #38bdf8 !important;
+        font-weight: 800 !important;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# ----------------------------------------------------------------------------------------
+# Benchmark Bank (Numbered Samples: Index 1 to 10 for Arabic & English)
+# ----------------------------------------------------------------------------------------
+BENCHMARKS = {
+    "arabic": {
+        1: {
+            "title": "Standard MSA Overview (With Full Tashkeel)",
+            "text": "يَعْتَمِدُ نِظَامُ فُيُوجِن جِيبَا عَلَى التَّعَلُّمِ الذَّاتِيِّ لِتَوْلِيدِ صَوْتٍ عَالِي الْجَوْدَةِ، وَيَتَمَيَّزُ بِقُدْرَتِهِ عَلَى مُعَالَجَةِ النُّصُوصِ الْعَرَبِيَّةِ الْمُعَقَّدَةِ بِكُلِّ دِقَّةٍ وَوُضُوحٍ."
+        },
+        2: {
+            "title": "Scientific & Technological News",
+            "text": "أَعْلَنَتْ مَدِينَةُ الْمَلِكِ عَبْدِاللَّهِ لِلْعُلُومِ وَالتَّقْنِيَّةِ عَنْ إِطْلَاقِ حُزْمَةٍ جَدِيدَةٍ مِنْ نَمَاذِجِ الذَّكَاءِ الاصْطِنَاعِيِّ الْمُتَقَدِّمَةِ لِدَعْمِ اللُّغَةِ الْعَرَبِيَّةِ فِي شَتَّى الْمَجَالَاتِ."
+        },
+        3: {
+            "title": "Quranic / Classical Cadence (Surat Al-Infitar)",
+            "text": "وَإِذَا السَّمَاءُ انْفَطَرَتْ، وَإِذَا الْكَوَاكِبُ انْتَثَرَتْ، وَإِذَا الْبِحَارُ فُجِّرَتْ، وَإِذَا الْقُبُورُ بُعْثِرَتْ، عَلِمَتْ نَفْسٌ مَا قَدَّمَتْ وَأَخَّرَتْ."
+        },
+        4: {
+            "title": "Expressive Narrative & Atmosphere",
+            "text": "كَانَ الصَّبَاحُ هَادِئًا فِي تِلْكَ الْقَرْيَةِ الْجَمِيلَةِ، حَيْثُ تَتَصَاعَدُ أَلْحَانُ الطُّيُورِ مَعَ إِشْرَاقَةِ الشَّمْسِ الذَّهَبِيَّةِ لِتَبْعَثَ الْأَمَلَ فِي نُفُوسِ الْجَمِيعِ."
+        },
+        5: {
+            "title": "Phonetic Gemination (Shaddah) & Articulation Test",
+            "text": "تَقَدَّمَ الْمُتَحَدِّثُ الرَّسْمِيُّ لِيُؤَكِّدَ تَطَوُّرَ الصِّنَاعَاتِ التِّقْنِيَّةِ الْمُتَقَدِّمَةِ وَتَفَوُّقَهَا الْمُسْتَمِرَّ فِي كَافَّةِ الْأَسْوَاقِ الْعَالَمِيَّةِ."
+        },
+        6: {
+            "title": "Short Conversational Prompt",
+            "text": "مَرْحَبًا بِكُمْ جَمِيعًا فِي هَذَا الْعَرْضِ التَّوْضِيحِيِّ لِمَشْرُوعِ فُيُوجِن جِيبَا لِتَوْلِيدِ الْكَلَامِ."
+        },
+        7: {
+            "title": "Philosophical / Literary Prose",
+            "text": "إِنَّ الْمَعْرِفَةَ نُورٌ يُضِيءُ دُرُوبَ الْحَيَاةِ، وَبِهَا تَرْتَقِي الْأُمَمُ وَتَتَحَقَّقُ أَعْظَمُ الإِنْجَازَاتِ الإِنْسَانِيَّةِ عَلَى مَرِّ الْعُصُورِ."
+        },
+        8: {
+            "title": "Formal Diplomatic Announcement",
+            "text": "أَكَّدَتِ الدُّوَلُ الْمُشَارِكَةُ فِي الْقِمَّةِ عَلَى أَهَمِّيَّةِ التَّعَاوُنِ الْمُشْتَرَكِ لِمُوَاجَهَةِ التَّحَدِّيَاتِ وَتَعْزِيزِ الأَمْنِ وَالاسْتِقْرَارِ فِي الْمِنْطَقَةِ."
+        },
+        9: {
+            "title": "Multi-Paragraph Longform Article (Part 1)",
+            "text": "يَشْهَدُ الْعَالَمُ الْيَوْمَ ثَوْرَةً تِقْنِيَّةً غَيْرَ مَسْبُوقَةٍ فِي مَجَالَاتِ الذَّكَاءِ الاصْطِنَاعِيِّ وَمُعَالَجَةِ اللُّغَاتِ الطَّبِيعِيَّةِ. وَقَدْ أَسْهَمَتْ هَذِهِ الاِبْتِكَارَاتُ فِي تَحْسِينِ جَوْدَةِ الْحَيَاةِ وَتَسْهِيلِ التَّوَاصُلِ بَيْنَ الشُّعُوبِ."
+        },
+        10: {
+            "title": "Vision 2030 Transformation (Longform Paragraph)",
+            "text": "تَسْعَى الْمَمْلَكَةُ الْعَرَبِيَّةُ السَّعُودِيَّةُ بِخُطًى حَثِيثَةٍ نَحْوَ بِنَاءِ مُسْتَقْبَلٍ رَقْمِيٍّ رَائِدٍ، يُرَكِّزُ عَلَى تَطْوِيرِ الْكِفَاءَاتِ الْوَطَنِيَّةِ وَتَوْطِينِ أَحْدَثِ التِّقْنِيَّاتِ الْعَالَمِيَّةِ لِتَحْقِيقِ رُؤْيَةِ عِشْرِينَ ثَلَاثِينَ."
+        }
+    },
+    "english": {
+        1: {
+            "title": "Fusion-JEPA Technical Overview",
+            "text": "Fusion-JEPA is a deep multimodal architecture designed for expressive text-to-speech synthesis, achieving studio-quality audio through continuous flow matching and joint-embedding representations."
+        },
+        2: {
+            "title": "LJSpeech Benchmark Reference (Sample #001)",
+            "text": "Printing, in the only sense with which we are at present concerned, differs from most if not from all other arts and crafts represented in the Exhibition."
+        },
+        3: {
+            "title": "Pangram & Consonant Clarity Test",
+            "text": "The quick brown fox jumps over the lazy dog near the vibrant riverbank under the blazing golden sunset."
+        },
+        4: {
+            "title": "Expressive Storytelling & Cadence",
+            "text": "The journey of artificial intelligence has reached an exciting milestone. Today, neural networks can understand complex linguistic patterns and generate human-like speech with remarkable naturalness."
+        },
+        5: {
+            "title": "Scientific Abstract (Diffusion vs. Flow Matching)",
+            "text": "Recent breakthroughs in continuous normalizing flows and joint-embedding predictive architectures have enabled highly efficient generative modeling without autoregressive bottlenecks."
+        },
+        6: {
+            "title": "Conversational Greeting",
+            "text": "Welcome to the live interactive demonstration of Fusion-JEPA bilingual text to speech synthesis."
+        },
+        7: {
+            "title": "Literature & Philosophical Thought",
+            "text": "In a world driven by constant innovation, the ability to communicate with clarity and emotional depth remains our greatest human achievement."
+        },
+        8: {
+            "title": "Formal Global Broadcast",
+            "text": "International delegates gathered this morning to discuss the future of sustainable technology and collaborative artificial intelligence research across leading academic institutions."
+        },
+        9: {
+            "title": "Multi-Paragraph Longform (Evolution of TTS)",
+            "text": "Speech synthesis has evolved dramatically over the last decade. From early concatenative systems to modern continuous flow matching transformers, the pursuit of truly human-like prosody has inspired researchers worldwide."
+        },
+        10: {
+            "title": "Multimodal Future Outlook (Longform Paragraph)",
+            "text": "The integration of semantic representation learning with acoustic generative models represents a promising direction for multimodal artificial intelligence, achieving higher fidelity with significantly fewer training hours."
+        }
+    }
+}
 
 # ----------------------------------------------------------------------------------------
 # Hardware Detection
@@ -163,126 +325,141 @@ def load_jepa_model(lang: str, custom_ckpt: str = None):
                 elif not k.startswith("ema_model."):
                     model_dict[k] = v
             model.load_state_dict(model_dict, strict=False)
-        ckpt_status = f"Loaded ({os.path.basename(found_path)})"
+        ckpt_display = os.path.basename(found_path)
     else:
-        ckpt_status = "Untrained (No checkpoint in training_logs/)"
+        ckpt_display = "Untrained (No checkpoint in training_logs/)"
 
     model.eval()
-    return model, ckpt_status, found_path
+    return model, ckpt_display, found_path
 
 @st.cache_resource(show_spinner="Loading BigVGAN v2 Vocoder (44.1kHz Studio)...")
 def load_vocoder():
     return VocoderManager(device=device)
 
 # ----------------------------------------------------------------------------------------
-# Sample Presets Bank
+# Session State Management for Text & Sample Index
 # ----------------------------------------------------------------------------------------
-PRESETS = {
-    "arabic": {
-        "1. Standard MSA Overview (With Tashkeel)": (
-            "يَعْتَمِدُ نِظَامُ فُيُوجِن جِيبَا عَلَى التَّعَلُّمِ الذَّاتِيِّ لِتَوْلِيدِ صَوْتٍ عَالِي الْجَوْدَةِ، "
-            "وَيَتَمَيَّزُ بِقُدْرَتِهِ عَلَى مُعَالَجَةِ النُّصُوصِ الْعَرَبِيَّةِ الْمُعَقَّدَةِ بِكُلِّ دِقَّةٍ وَوُضُوحٍ."
-        ),
-        "2. Classical / Poetic Verse (Rhythmic Cadence)": (
-            "وَإِذَا السَّمَاءُ انْفَطَرَتْ، وَإِذَا الْكَوَاكِبُ انْتَثَرَتْ، وَإِذَا الْبِحَارُ فُجِّرَتْ، "
-            "وَإِذَا الْقُبُورُ بُعْثِرَتْ، عَلِمَتْ نَفْسٌ مَا قَدَّمَتْ وَأَخَّرَتْ."
-        ),
-        "3. Technology & Scientific News (Longform Paragraph)": (
-            "أَعْلَنَتْ مَدِينَةُ الْمَلِكِ عَبْدِاللَّهِ لِلْعُلُومِ وَالتَّقْنِيَّةِ عَنْ إِطْلَاقِ حُزْمَةٍ جَدِيدَةٍ "
-            "مِنْ نَمَاذِجِ الذَّكَاءِ الاصْطِنَاعِيِّ الْمُتَقَدِّمَةِ لِدَعْمِ اللُّغَةِ الْعَرَبِيَّةِ فِي شَتَّى الْمَجَالَاتِ، "
-            "مِمَّا يُعَزِّزُ مِنْ مَكَانَةِ الْمَمْلَكَةِ كَمَرْكَزٍ إِقْلِيمِيٍّ لِلابْتِكَارِ وَالتَّطْوِيرِ التِّقْنِيِّ."
-        ),
-        "4. Custom Arabic Text": ""
-    },
-    "english": {
-        "1. Technical Introduction": (
-            "Fusion-JEPA is a deep multimodal architecture designed for expressive text-to-speech synthesis, "
-            "achieving studio-quality audio through continuous flow matching and joint-embedding representations."
-        ),
-        "2. Narrative / Storytelling (Longform Paragraph)": (
-            "The journey of artificial intelligence has reached an exciting milestone. Today, neural networks can understand "
-            "complex linguistic patterns and generate human-like speech with remarkable naturalness, capturing subtle inflections "
-            "and emotional cadence across multiple languages."
-        ),
-        "3. Custom English Text": ""
-    }
-}
+if "input_text_content" not in st.session_state:
+    st.session_state["input_text_content"] = BENCHMARKS["arabic"][1]["text"]
+
+if "input_mode" not in st.session_state:
+    st.session_state["input_mode"] = "index"
+
+def sync_text_from_index():
+    lang = st.session_state.get("lang_choice_widget", "arabic")
+    idx = st.session_state.get("sample_idx_widget", 1)
+    st.session_state["input_text_content"] = BENCHMARKS[lang][idx]["text"]
+
+def sync_text_on_lang_switch():
+    lang = st.session_state.get("lang_choice_widget", "arabic")
+    mode = st.session_state.get("mode_choice_widget", "index")
+    if mode == "index":
+        idx = st.session_state.get("sample_idx_widget", 1)
+        st.session_state["input_text_content"] = BENCHMARKS[lang][idx]["text"]
 
 # ----------------------------------------------------------------------------------------
-# UI Header
+# UI Header & Badges
 # ----------------------------------------------------------------------------------------
 st.markdown('<div class="main-title">🎙️ Fusion-JEPA Studio — Expressive Bilingual TTS</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Continuous Flow Matching & Decoupled Latent Joint-Embedding Predictive Architecture</div>', unsafe_allow_html=True)
 
-# Hardware & System Badges
+# Preview active checkpoint name
+current_lang_preview = st.session_state.get("lang_choice_widget", "arabic")
+_, ckpt_name_preview, _ = load_jepa_model(current_lang_preview)
+
 st.markdown(f"""
-<div>
+<div class="badge-container">
     <span class="badge badge-gpu">⚡ Device: {device_name}</span>
-    <span class="badge badge-arch">🧩 Model: MM-DiT 128-band Mel</span>
+    <span class="badge badge-arch">🧩 Model: MM-DiT (128x512 Canvas)</span>
     <span class="badge badge-sr">📻 Vocoder: BigVGAN v2 (44.1 kHz Studio)</span>
+    <span class="badge badge-ckpt">📁 Checkpoint: {ckpt_name_preview}</span>
 </div>
 """, unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------------------
-# Top Control Grid (Above Text Box)
+# Configuration Grid (3 Styled Cards)
 # ----------------------------------------------------------------------------------------
-with st.container():
-    col_lang, col_hyper, col_opt = st.columns([1.1, 1.3, 1.2])
+col_left, col_mid, col_right = st.columns([1.1, 1.25, 1.15])
 
-    with col_lang:
-        st.markdown("##### 🌐 Language & Sample Presets")
-        lang_choice = st.radio(
-            "Select Language",
-            options=["arabic", "english"],
-            format_func=lambda x: "🇸🇦 Arabic (العربية)" if x == "arabic" else "🇬🇧 English",
-            horizontal=True,
-            label_visibility="collapsed"
-        )
-        preset_names = list(PRESETS[lang_choice].keys())
-        selected_preset = st.selectbox(
-            "Load Sample Preset",
-            options=preset_names,
-            index=0
-        )
-        default_text = PRESETS[lang_choice][selected_preset]
+# CARD 1: Language & Input Mode Selection
+with col_left:
+    st.markdown('<div class="card-title">🌐 1. Language & Input Mode</div>', unsafe_allow_html=True)
+    
+    lang_choice = st.radio(
+        "Language",
+        options=["arabic", "english"],
+        format_func=lambda x: "🇸🇦 Arabic (العربية)" if x == "arabic" else "🇬🇧 English",
+        horizontal=True,
+        key="lang_choice_widget",
+        on_change=sync_text_on_lang_switch
+    )
 
-    with col_hyper:
-        st.markdown("##### ⚙️ Synthesis Hyperparameters")
-        steps = st.slider(
-            "Euler ODE Steps (Inference Speed vs. Quality)",
-            min_value=16,
-            max_value=100,
-            value=60,
-            step=4,
-            help="16 = Fast generation (~0.15s), 32 = Balanced (~0.25s), 60 = Studio Quality (~0.45s)."
-        )
-        cfg_scale = st.slider(
-            "Classifier-Free Guidance (CFG Scale $w$)",
-            min_value=1.0,
-            max_value=15.0,
-            value=7.0,
-            step=0.5,
-            help="Higher values (e.g. 7.0) strongly enforce phonetic alignment and remove muffled speech."
-        )
+    mode_choice = st.radio(
+        "Input Mode",
+        options=["index", "custom"],
+        format_func=lambda x: "🔢 Benchmark Sample Index" if x == "index" else "✏️ Custom Freeform Text",
+        horizontal=True,
+        key="mode_choice_widget",
+        on_change=sync_text_on_lang_switch
+    )
 
-    with col_opt:
-        st.markdown("##### 🎛️ Phrasing & Features")
-        pause_ms = st.slider(
-            "Inter-Clause Breath Pause (ms)",
-            min_value=0,
-            max_value=400,
-            value=100,
-            step=25,
-            help="Acoustic silence inserted between stitched prosodic sentences in longform audio."
+    if mode_choice == "index":
+        selected_idx = st.number_input(
+            "Select Sample Index # (1 to 10)",
+            min_value=1,
+            max_value=10,
+            value=1,
+            step=1,
+            key="sample_idx_widget",
+            on_change=sync_text_from_index,
+            help="Picks a curated evaluation sentence and automatically pastes it into the text box below."
         )
-        trim_silence = st.checkbox("✂️ Smart Adaptive Silence Truncation", value=True, help="Removes trailing canvas noise.")
-        save_mel = st.checkbox("📊 Display Mel-Spectrogram Analysis", value=True, help="Visualizes frequency harmonics.")
-        show_chunks = st.checkbox("🔍 Show Prosodic Clause Breakdown", value=True, help="Displays segmented sentence clauses.")
+        sample_meta = BENCHMARKS[lang_choice][selected_idx]
+        st.caption(f"📌 **Sample #{selected_idx}:** {sample_meta['title']}")
+
+# CARD 2: Synthesis Hyperparameters
+with col_mid:
+    st.markdown('<div class="card-title">⚙️ 2. Flow Matching Controls</div>', unsafe_allow_html=True)
+    
+    steps = st.slider(
+        "Euler ODE Integration Steps ($N$)",
+        min_value=16,
+        max_value=100,
+        value=60,
+        step=4,
+        help="16 = Ultra-Fast (~0.15s), 32 = Balanced (~0.25s), 60 = Studio Quality (~0.45s)."
+    )
+    
+    cfg_scale = st.slider(
+        "Classifier-Free Guidance Scale (CFG $w$)",
+        min_value=1.0,
+        max_value=15.0,
+        value=7.0,
+        step=0.5,
+        help="Controls adherence to text phonemes. w=7.0 provides crystal-clear consonants and removes muffled speech."
+    )
+
+# CARD 3: Phrasing & Feature Toggles
+with col_right:
+    st.markdown('<div class="card-title">🎛️ 3. Phrasing & Diagnostics</div>', unsafe_allow_html=True)
+    
+    pause_ms = st.slider(
+        "Inter-Clause Pause Duration (ms)",
+        min_value=0,
+        max_value=400,
+        value=100,
+        step=25,
+        help="Acoustic silence inserted between stitched prosodic sentences in longform speech."
+    )
+    
+    trim_silence = st.checkbox("✂️ Adaptive Silence Truncation", value=True, help="Trims unconditioned trailing canvas noise.")
+    save_mel = st.checkbox("📊 Display Mel-Spectrogram Plot", value=True, help="Renders time-frequency harmonic spectrogram.")
+    show_chunks = st.checkbox("🔍 Show Prosodic Clause Table", value=True, help="Displays segmented clause diagnostics.")
 
 # Advanced Checkpoint Expander
-with st.expander("🛠️ Advanced Checkpoint & Model Settings"):
+with st.expander("🛠️ Advanced: Custom Checkpoint Override"):
     custom_ckpt_path = st.text_input(
-        "Custom Checkpoint Path (Optional - Leave blank for auto-detection)",
+        "Checkpoint File Path (Optional - Leave blank for automatic latest detection)",
         value="",
         placeholder="e.g. training_logs/arabic/jepa_epoch_200.pt"
     )
@@ -291,26 +468,33 @@ with st.expander("🛠️ Advanced Checkpoint & Model Settings"):
 # Text Input Area
 # ----------------------------------------------------------------------------------------
 st.markdown("##### ✍️ Input Text (Single Sentences or Multi-Paragraph Longform)")
-input_text = st.text_area(
-    "Input Text",
-    value=default_text,
-    height=120,
+
+# Text area bound to session state
+main_text = st.text_area(
+    "Text Input",
+    value=st.session_state["input_text_content"],
+    height=125,
     placeholder="Type or paste Arabic text with Tashkeel or English text...",
     label_visibility="collapsed"
 )
 
-# Text Stats & Token Preview
-char_count = len(input_text)
-word_count = len(input_text.split())
-st.caption(f"📝 Length: **{word_count}** words | **{char_count}** characters")
+# Keep session state in sync with manual user edits
+st.session_state["input_text_content"] = main_text
 
-with st.expander("🔎 Phonetization Token Preview"):
-    if input_text.strip():
+# Text Statistics Badge
+char_count = len(main_text)
+word_count = len(main_text.split())
+est_dur = max(0.5, word_count * 0.45)
+st.caption(f"📝 Length: **{word_count}** words | **{char_count}** characters | Estimated Audio Duration: **~{est_dur:.1f}s**")
+
+# Phonetic Token Preview Expander
+with st.expander("🔎 Phonetization Token Inspector"):
+    if main_text.strip():
         try:
             if lang_choice == "arabic":
-                preview_tokens = arabic_to_tokens(input_text)
+                preview_tokens = arabic_to_tokens(main_text)
             else:
-                preview_tokens = english_to_tokens(input_text)
+                preview_tokens = english_to_tokens(main_text)
             valid_toks = [t for t in preview_tokens if t in phon_to_id_]
             st.write(f"**Total Phonetized Tokens ({len(valid_toks)}):**")
             st.code(" ".join(valid_toks), language="text")
@@ -323,11 +507,11 @@ with st.expander("🔎 Phonetization Token Preview"):
 # Generation Execution
 # ----------------------------------------------------------------------------------------
 st.markdown("<br>", unsafe_allow_html=True)
-generate_btn = st.button("🚀 Generate Speech", type="primary", use_container_width=True)
+generate_btn = st.button("🚀 Generate High-Fidelity Speech", type="primary", use_container_width=True)
 
 if generate_btn:
-    if not input_text.strip():
-        st.error("Please enter some text before generating audio.")
+    if not main_text.strip():
+        st.error("Please enter or select some text before generating audio.")
     else:
         # Load model and vocoder
         model, ckpt_status, active_ckpt = load_jepa_model(lang_choice, custom_ckpt_path if custom_ckpt_path else None)
@@ -335,7 +519,7 @@ if generate_btn:
 
         # Step 1: Prosodic chunking
         with st.spinner("Analyzing linguistic prosody & sentence segmentation..."):
-            chunks = split_into_prosodic_chunks(input_text, lang=lang_choice, max_phonemes=55, min_phonemes=18)
+            chunks = split_into_prosodic_chunks(main_text, lang=lang_choice, max_phonemes=55, min_phonemes=18)
 
         if not chunks:
             st.error("No valid text clauses found to synthesize.")
@@ -433,7 +617,7 @@ if generate_btn:
 
                 st.success("🎉 **Speech Synthesis Complete!**")
 
-                # Audio Player & Download
+                # Audio Player & Download Section
                 st.markdown("### 🎧 Audio Output")
                 st.audio(wav_bytes, format="audio/wav")
 
