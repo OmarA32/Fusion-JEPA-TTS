@@ -25,18 +25,18 @@ from text import (
     phonemes_to_tokens
 )
 
-def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=36, min_phonemes=14):
+def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=55, min_phonemes=18):
     """
     Splits long text or phoneme streams into natural prosodic clauses.
-    Handles punctuated text, unpunctuated text, and raw phoneme streams.
-    Includes Orphan-Prevention Rule: Merges trailing 1-2 words into the
-    previous chunk to ensure natural grammatical phrasing.
+    1. Splits primarily on punctuation boundaries (., !, ?, ;, ,, ،, ؛).
+    2. If a single unpunctuated sentence is long (>55 phonemes / ~4.8s), sub-splits at word boundaries.
+    3. Merges orphan trailing fragments (<= 2 words) into the preceding chunk.
     """
     text = text.strip()
     if not text:
         return []
 
-    # 1. First-pass: Split by standard punctuation if available
+    # 1. Primary Split: Standard punctuation boundaries
     punct_pattern = r'[\n\.\!\?\,\;\:\–\—\،\؛\؟]+'
     raw_clauses = [c.strip() for c in re.split(punct_pattern, text) if c.strip()]
     
@@ -55,7 +55,6 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=36, min_phoneme
         current_tokens = []
 
         for word in words:
-            # Measure phonemes for this word
             try:
                 if lang == "arabic":
                     word_tokens = arabic_to_tokens(word)
@@ -65,7 +64,6 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=36, min_phoneme
             except Exception:
                 valid_word_tokens = list(word)
 
-            # If adding this word exceeds max_phonemes and we have enough tokens, create a chunk
             if len(current_tokens) + len(valid_word_tokens) > max_phonemes and len(current_tokens) >= min_phonemes:
                 clause_chunks.append((" ".join(current_words), current_tokens))
                 current_words = [word]
@@ -75,7 +73,6 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=36, min_phoneme
                 current_tokens.extend(valid_word_tokens)
 
         if current_words:
-            # If the remaining fragment in this clause has <= 2 words and we already have prior chunks in this clause, merge it!
             if clause_chunks and (len(current_words) <= 2 or len(current_tokens) < min_phonemes):
                 prev_text, prev_tokens = clause_chunks[-1]
                 clause_chunks[-1] = (prev_text + " " + " ".join(current_words), prev_tokens + current_tokens)
@@ -154,7 +151,7 @@ def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None
     cut_sample = min(len(audio), int(cut_frame * hop_length))
     clean_audio = audio[:cut_sample].copy()
     
-    # Smooth 20ms raised-cosine fade-out
+    # Smooth 20ms raised-cosine fade-out on the tail to prevent click at the cut
     fade_len = min(len(clean_audio), int(sample_rate * 0.020))
     if fade_len > 0:
         fade_curve = 0.5 * (1.0 + np.cos(np.linspace(0, np.pi, fade_len)))
@@ -162,10 +159,10 @@ def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None
         
     return clean_audio, cut_frame
 
-def stitch_audio_segments(segments, pause_ms=100, crossfade_ms=15, sample_rate=44100):
+def stitch_audio_segments(segments, pause_ms=100, sample_rate=44100):
     """
-    Seamlessly concatenates audio segments with natural acoustic breath pauses
-    and raised-cosine crossfading at chunk boundaries.
+    Seamlessly concatenates audio segments with natural acoustic breath pauses.
+    Preserves full attack/onsets of initial consonants without muting or clipping.
     """
     if not segments:
         return np.zeros(0, dtype=np.float32)
@@ -173,32 +170,21 @@ def stitch_audio_segments(segments, pause_ms=100, crossfade_ms=15, sample_rate=4
         return segments[0]
 
     pause_samples = int(sample_rate * (pause_ms / 1000.0))
-    crossfade_samples = int(sample_rate * (crossfade_ms / 1000.0))
+    pause_block = np.zeros(pause_samples, dtype=np.float32)
     
-    stitched = segments[0]
-
-    for seg in segments[1:]:
+    stitched_parts = []
+    for i, seg in enumerate(segments):
         if len(seg) == 0:
             continue
+        # Normalize each segment to uniform amplitude
+        seg_max = max(abs(seg).max(), 1e-8)
+        norm_seg = seg / seg_max
         
-        # 1. Insert pause
-        pause_block = np.zeros(pause_samples, dtype=np.float32)
-        
-        # 2. Crossfade junction if long enough
-        if len(stitched) >= crossfade_samples and len(seg) >= crossfade_samples:
-            fade_out = 0.5 * (1.0 + np.cos(np.linspace(0, np.pi, crossfade_samples)))
-            fade_in = 0.5 * (1.0 - np.cos(np.linspace(0, np.pi, crossfade_samples)))
-            
-            # Apply fade to previous tail and new head
-            stitched[-crossfade_samples:] = stitched[-crossfade_samples:] * fade_out
-            seg_head = seg[:crossfade_samples] * fade_in
-            seg_rest = seg[crossfade_samples:]
-            
-            stitched = np.concatenate([stitched, pause_block, seg_head, seg_rest])
-        else:
-            stitched = np.concatenate([stitched, pause_block, seg])
+        stitched_parts.append(norm_seg)
+        if i < len(segments) - 1:
+            stitched_parts.append(pause_block)
 
-    return stitched
+    return np.concatenate(stitched_parts)
 
 def generate_longform_speech(
     text, 
@@ -217,7 +203,7 @@ def generate_longform_speech(
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
-    print(f"Using device: {device}")
+    print(f"Using natively accelerated PyTorch device: {device}")
 
     # 1. Initialize Model
     print("Initializing JEPA Model...")
@@ -234,7 +220,7 @@ def generate_longform_speech(
         drop_path_rate=0.0
     ).to(device)
 
-    # 2. Checkpoint Loading
+    # 2. Checkpoint Loading (matches inference.py exactly)
     import re
     def get_latest_checkpoint(log_dir):
         if not os.path.exists(log_dir):
@@ -274,7 +260,7 @@ def generate_longform_speech(
         found_path, ckpt_type, _ = get_latest_checkpoint(log_dir)
 
     if found_path and os.path.exists(found_path):
-        print(f"Loading checkpoint from {found_path} ({ckpt_type})...")
+        print(f"Loading weights from {found_path} ({ckpt_type})...")
         if ckpt_type == "pt":
             ckpt = torch.load(found_path, map_location=device, weights_only=False)
             model.load_state_dict(ckpt['model_state_dict'])
@@ -283,9 +269,15 @@ def generate_longform_speech(
             state_dict = ckpt.get('state_dict', ckpt)
             model_dict = {}
             for k, v in state_dict.items():
-                k_new = k.replace("model.", "", 1) if k.startswith("model.") else k
-                model_dict[k_new] = v
-            model.load_state_dict(model_dict, strict=False)
+                if k.startswith("model."):
+                    k_new = k.replace("model.", "", 1)
+                    model_dict[k_new] = v
+                elif not k.startswith("ema_model."):
+                    model_dict[k] = v
+            try:
+                model.load_state_dict(model_dict, strict=False)
+            except Exception as e:
+                print(f"Warning during state_dict load: {e}")
     else:
         print(f"\n[WARNING] No checkpoint found in 'training_logs/{lang}'! Generating with untrained weights.")
 
@@ -296,32 +288,33 @@ def generate_longform_speech(
     vocoder_instance = VocoderManager(device=device)
 
     # 4. Prosodic Chunking
-    chunks = split_into_prosodic_chunks(text, lang=lang, max_phonemes=30, min_phonemes=12)
-    print(f"\n[Long-Form Plan] Split input into {len(chunks)} prosodic clause(s):")
-    for i, (c_text, c_tokens) in enumerate(chunks):
-        print(f"  Chunk {i+1}/{len(chunks)} ({len(c_tokens)} phonemes): \"{c_text}\"")
+    chunks = split_into_prosodic_chunks(text, lang=lang, max_phonemes=55, min_phonemes=18)
+    print(f"\n[Long-Form Plan] Split input into {len(chunks)} coherent prosodic clause(s):")
+    for i, (c_text, _) in enumerate(chunks):
+        print(f"  Clause {i+1}/{len(chunks)}: \"{c_text}\"")
     print("")
 
     sample_rate = 44100
     audio_segments = []
     mel_segments = []
 
-    # 5. Sequential Generation Pipeline
-    for i, (chunk_text, chunk_tokens) in enumerate(chunks):
-        print(f"--- Synthesizing Chunk {i+1}/{len(chunks)} ---")
+    # 5. Sequential Generation Pipeline (Exact inference.py parity per clause)
+    for i, (chunk_text, _) in enumerate(chunks):
+        print(f"--- Synthesizing Clause {i+1}/{len(chunks)}: \"{chunk_text}\" ---")
         try:
             if lang == "arabic":
                 tokens = arabic_to_tokens(chunk_text)
             elif lang == "english":
                 tokens = english_to_tokens(chunk_text)
             else:
-                tokens = chunk_tokens
+                raise ValueError(f"Language {lang} not supported.")
             tokens = [t for t in tokens if t in phon_to_id_]
-        except Exception:
-            tokens = [t for t in chunk_tokens if t in phon_to_id_]
+            tokens = tokens_to_ids(tokens)
+        except Exception as e:
+            print(f"Error processing text for clause {i+1}: {e}")
+            continue
 
-        token_ids = tokens_to_ids(tokens)
-        text_input = [token_ids]
+        text_input = [tokens]
 
         with torch.no_grad():
             generated_mel = model.sample_tokens(
@@ -349,15 +342,15 @@ def generate_longform_speech(
             clean_mel = mel_for_vocoder.squeeze(0).cpu().numpy()
 
         chunk_dur = len(clean_audio) / sample_rate
-        print(f"Chunk {i+1} Synthesized: {chunk_dur:.2f}s audio.")
+        print(f"Clause {i+1} Synthesized: {chunk_dur:.2f}s audio.")
         audio_segments.append(clean_audio)
         mel_segments.append(clean_mel)
 
     # 6. Seamless Audio Stitching
-    print("\nStitching all audio segments with natural phrasing and crossfades...")
+    print("\nStitching all audio segments with natural phrasing...")
     stitched_audio = stitch_audio_segments(audio_segments, pause_ms=pause_ms, sample_rate=sample_rate)
 
-    # Normalize audio
+    # Normalize final audio
     stitched_audio = stitched_audio / max(abs(stitched_audio).max(), 1e-8)
     audio_int16 = (stitched_audio * 32767).astype(np.int16)
 
