@@ -124,6 +124,31 @@ class JEPADataset(Dataset):
         self.data_dir = os.path.join(PROJECT_ROOT, "data")
         self.dataset = []
         self._load_database()
+        # Pre-tokenize all text in memory for zero-overhead training epochs
+        self._pretokenize_texts()
+
+    def _pretokenize_texts(self):
+        if not self.dataset:
+            return
+        for item in self.dataset:
+            if "text_ids" in item:
+                continue
+            if self.lang == "arabic":
+                if self.db == "nawar_halabi":
+                    from text import buckwalter_to_phonemes
+                    phonemes = buckwalter_to_phonemes(item['sentence'])
+                else:
+                    sentence_text = item.get('sentence', item.get('text', ''))
+                    phonemes = arabic_to_phonemes(sentence_text)
+                tokens = phonemes_to_tokens(phonemes)
+                tokens = [t for t in tokens if t in phon_to_id_]
+                item['text_ids'] = torch.LongTensor(tokens_to_ids(tokens))
+            else:
+                from text import english_to_tokens
+                sentence_text = item.get('sentence', item.get('text', ''))
+                tokens = english_to_tokens(sentence_text)
+                tokens = [t for t in tokens if t in phon_to_id_]
+                item['text_ids'] = torch.LongTensor(tokens_to_ids(tokens))
 
     def _filter_by_duration(self, raw_items):
         if self.min_duration_sec <= 0.0:
@@ -281,57 +306,67 @@ class JEPADataset(Dataset):
     def __getitem__(self, idx):
         item = self.dataset[idx]
         
-        # --- Audio Processing ---
-        if self.lang == "arabic" and self.db in ["common_voice", "clartts"]:
-            import io
-            import soundfile as sf
-            audio_bytes = item['audio']['bytes']
-            wav_np, sr = sf.read(io.BytesIO(audio_bytes))
-            wav = torch.tensor(wav_np, dtype=torch.float32)
-        elif self.lang == "arabic" and self.db == "nawar_halabi":
-            import soundfile as sf
-            wav_np, sr = sf.read(item['audio_path'])
-            wav = torch.tensor(wav_np, dtype=torch.float32)
-            if len(wav.shape) > 1:
-                wav = wav[:, 0] # convert to mono if stereo
-        elif self.lang == "english":
-            import soundfile as sf
-            if "audio_path" in item:
+        # --- Audio Processing & Mel Caching ---
+        if "mel_tgt" in item:
+            jepa_mel = item["mel_tgt"]
+        else:
+            if self.lang == "arabic" and self.db in ["common_voice", "clartts"]:
+                import io
+                import soundfile as sf
+                audio_bytes = item['audio']['bytes']
+                wav_np, sr = sf.read(io.BytesIO(audio_bytes))
+                wav = torch.tensor(wav_np, dtype=torch.float32)
+            elif self.lang == "arabic" and self.db == "nawar_halabi":
+                import soundfile as sf
                 wav_np, sr = sf.read(item['audio_path'])
                 wav = torch.tensor(wav_np, dtype=torch.float32)
+                if len(wav.shape) > 1:
+                    wav = wav[:, 0] # convert to mono if stereo
+            elif self.lang == "english":
+                import soundfile as sf
+                if "audio_path" in item:
+                    wav_np, sr = sf.read(item['audio_path'])
+                    wav = torch.tensor(wav_np, dtype=torch.float32)
+                else:
+                    wav = item['audio_tensor'].squeeze(0)
+                    sr = item['sample_rate']
+                
+            if sr != self.jepa_sr:
+                wav = torchaudio.functional.resample(wav, sr, self.jepa_sr)
+                
+            target_len = self.max_frames * self.mel_kwargs["hop_size"]
+            if len(wav) > target_len:
+                wav = wav[:target_len]
             else:
-                wav = item['audio_tensor'].squeeze(0)
-                sr = item['sample_rate']
+                wav = F.pad(wav, (0, target_len - len(wav)))
+                
+            # BigVGAN's mel_spectrogram expects [B, T] and outputs natively log-compressed magnitudes
+            jepa_mel = self.jepa_mel_fn(wav.unsqueeze(0), **self.mel_kwargs) # [1, 128, T]
             
-        if sr != self.jepa_sr:
-            wav = torchaudio.functional.resample(wav, sr, self.jepa_sr)
-            
-        target_len = self.max_frames * self.mel_kwargs["hop_size"]
-        if len(wav) > target_len:
-            wav = wav[:target_len]
-        else:
-            wav = F.pad(wav, (0, target_len - len(wav)))
-            
-        # BigVGAN's mel_spectrogram expects [B, T] and outputs natively log-compressed magnitudes
-        jepa_mel = self.jepa_mel_fn(wav.unsqueeze(0), **self.mel_kwargs) # [1, 128, T]
-        
-        # --- Text Processing ---
-        if self.lang == "arabic":
-            if self.db == "nawar_halabi":
-                from text import buckwalter_to_phonemes
-                phonemes = buckwalter_to_phonemes(item['sentence'])
+            # Cache mel in memory for small datasets (e.g. Nawar Halabi <= 2500 items, ~450MB RAM)
+            if len(self.dataset) <= 2500:
+                item["mel_tgt"] = jepa_mel
+
+        # --- Fast Text ID Fetch ---
+        text_ids = item.get('text_ids')
+        if text_ids is None:
+            if self.lang == "arabic":
+                if self.db == "nawar_halabi":
+                    from text import buckwalter_to_phonemes
+                    phonemes = buckwalter_to_phonemes(item['sentence'])
+                else:
+                    sentence_text = item.get('sentence', item.get('text', ''))
+                    phonemes = arabic_to_phonemes(sentence_text)
+                tokens = phonemes_to_tokens(phonemes)
+                tokens = [t for t in tokens if t in phon_to_id_]
+                text_ids = torch.LongTensor(tokens_to_ids(tokens))
             else:
+                from text import english_to_tokens
                 sentence_text = item.get('sentence', item.get('text', ''))
-                phonemes = arabic_to_phonemes(sentence_text)
-            tokens = phonemes_to_tokens(phonemes)
-            tokens = [t for t in tokens if t in phon_to_id_]
-            text_ids = torch.LongTensor(tokens_to_ids(tokens))
-        else:
-            from text import english_to_tokens
-            sentence_text = item.get('sentence', item.get('text', ''))
-            tokens = english_to_tokens(sentence_text)
-            tokens = [t for t in tokens if t in phon_to_id_]
-            text_ids = torch.LongTensor(tokens_to_ids(tokens))
+                tokens = english_to_tokens(sentence_text)
+                tokens = [t for t in tokens if t in phon_to_id_]
+                text_ids = torch.LongTensor(tokens_to_ids(tokens))
+            item['text_ids'] = text_ids
             
         return {
             "text_ids": text_ids,

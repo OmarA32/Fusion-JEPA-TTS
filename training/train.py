@@ -87,9 +87,14 @@ class HuggingFaceUploadCallback(L.Callback):
                     print(f"[HF Upload] Error: {e}")
 
 class SaveLastCheckpointCallback(L.Callback):
+    def __init__(self, save_interval_epochs=5):
+        self.save_interval_epochs = save_interval_epochs
+
     def on_train_epoch_end(self, trainer, pl_module):
-        ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
-        trainer.save_checkpoint(ckpt_path)
+        epoch = trainer.current_epoch + 1
+        if epoch % self.save_interval_epochs == 0 or epoch >= trainer.max_epochs:
+            ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
+            trainer.save_checkpoint(ckpt_path)
 
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory."""
@@ -184,8 +189,11 @@ def main():
     print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")
     # Train on the full dataset split
     train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
-    # Dynamically optimize data loading for Linux while keeping Windows safe
-    workers = 4 if os.name != 'nt' else 0
+    # Dynamically optimize data loading for Linux cluster (Ibex) while keeping Windows safe
+    is_linux = (os.name != 'nt')
+    workers = 8 if is_linux else 0
+    use_pin_memory = torch.cuda.is_available()
+    use_persistent = (workers > 0)
     
     # Robust Multi-GPU batch scaling
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
@@ -209,7 +217,9 @@ def main():
         batch_size=batch_size, 
         shuffle=True, 
         collate_fn=jepa_collate_fn,
-        num_workers=workers 
+        num_workers=workers,
+        pin_memory=use_pin_memory,
+        persistent_workers=use_persistent
     )
     
     # Initialize Validation
@@ -219,7 +229,9 @@ def main():
         batch_size=batch_size,
         shuffle=False,
         collate_fn=jepa_collate_fn,
-        num_workers=workers
+        num_workers=workers,
+        pin_memory=use_pin_memory,
+        persistent_workers=use_persistent
     )
 
     print("Initializing Lightning JEPA Model...")
@@ -253,7 +265,9 @@ def main():
             filename="best-epoch={epoch:03d}"
         )
     else:
-        checkpoint_callback = SaveLastCheckpointCallback()
+        # Save every 5 epochs for Arabic (every 285 steps), 1 epoch for English (every 410 steps)
+        save_interval = 5 if args.lang == "arabic" else 1
+        checkpoint_callback = SaveLastCheckpointCallback(save_interval_epochs=save_interval)
 
     callbacks_list = [checkpoint_callback, TQDMProgressBar(refresh_rate=1)]
     
