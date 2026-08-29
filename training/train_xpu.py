@@ -99,6 +99,7 @@ def main():
     parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
     parser.add_argument("--epochs", type=int, default=10000, help="Total number of epochs to train (default: 10000).")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
+    parser.add_argument("--batch_size", type=int, default=None, help="Explicit batch size override (default: auto-detected based on GPU VRAM).")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
     
@@ -138,7 +139,11 @@ def main():
     train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
     val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
     is_linux = (os.name != 'nt')
-    workers = 4 if is_linux else 0
+    if is_linux:
+        cpu_count = os.cpu_count() or 2
+        workers = min(8, max(2, cpu_count))
+    else:
+        workers = 0
     use_pin = (device.type in ["cuda", "xpu"])
     use_persistent = (workers > 0)
 
@@ -147,7 +152,10 @@ def main():
     if hasattr(torch, "xpu") and device.type == "xpu":
         num_gpus = torch.xpu.device_count()
         
-    batch_size = 10
+    if args.batch_size is not None:
+        batch_size = args.batch_size
+    else:
+        batch_size = 4
     print(f"Detected {num_gpus} GPUs on {device.type.upper()}. Using batch size {batch_size}.")
 
     train_loader = DataLoader(

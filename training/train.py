@@ -167,6 +167,7 @@ def main():
     parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
     parser.add_argument("--epochs", type=int, default=10000, help="Maximum number of training epochs (default: 10000).")
     parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
+    parser.add_argument("--batch_size", type=int, default=None, help="Explicit batch size override (default: auto-detected based on GPU VRAM).")
     parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
     args = parser.parse_args()
     
@@ -195,9 +196,13 @@ def main():
     print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")
     # Train on the full dataset split
     train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
-    # Dynamically optimize data loading for Linux cluster (Ibex) while keeping Windows safe
+    # Dynamically optimize data loading for Linux cluster (Ibex / Kaggle) while keeping Windows safe
     is_linux = (os.name != 'nt')
-    workers = 8 if is_linux else 0
+    if is_linux:
+        cpu_count = os.cpu_count() or 2
+        workers = min(8, max(2, cpu_count))
+    else:
+        workers = 0
     use_pin_memory = torch.cuda.is_available()
     use_persistent = (workers > 0)
     
@@ -205,16 +210,25 @@ def main():
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     
     # Dynamically scale batch size based on GPU Hardware to maximize VRAM
-    batch_size = 8 # Safe fallback for 12GB-16GB GPUs (down from 12 for SpatialDiT)
-    if num_gpus > 0:
+    if args.batch_size is not None:
+        batch_size = args.batch_size
+        print(f"🔧 Using manually specified batch size: {batch_size}")
+    elif num_gpus > 0:
         gpu_name = torch.cuda.get_device_name(0).lower()
-        if "a100" in gpu_name:
-            batch_size = 32 # A100s (40GB/80GB) scaled down from 48 for SpatialDiT
-            print(f"🚀 Detected NVIDIA A100 GPU! Supercharging batch size to {batch_size}!")
-        elif "v100" in gpu_name or "rtx 3090" in gpu_name or "rtx 4090" in gpu_name:
-            batch_size = 16 # 24GB GPUs scaled down from 24
+        if "a100" in gpu_name or "h100" in gpu_name:
+            batch_size = 32 # A100s / H100s (40GB/80GB)
+            print(f"🚀 Detected NVIDIA A100/H100 GPU! Supercharging batch size to {batch_size}!")
+        elif "v100" in gpu_name or "rtx 3090" in gpu_name or "rtx 4090" in gpu_name or "a6000" in gpu_name:
+            batch_size = 16 # 24GB - 48GB GPUs
             print(f"🚀 Detected {torch.cuda.get_device_name(0)}! Scaling batch size to {batch_size}.")
+        elif "t4" in gpu_name or "rtx 3080" in gpu_name or "rtx 4070" in gpu_name or "rtx 4060" in gpu_name:
+            batch_size = 4 # 15GB-16GB GPUs (Kaggle / Colab T4 safe)
+            print(f"🚀 Detected {torch.cuda.get_device_name(0)}! Setting safe batch size to {batch_size} (16GB VRAM safe).")
+        else:
+            batch_size = 4 # Universal safe fallback
+            print(f"Detected {torch.cuda.get_device_name(0)}. Using safe batch size {batch_size}.")
     else:
+        batch_size = 4
         print(f"Detected {num_gpus} GPUs. Using fallback batch size {batch_size}.")
 
 
