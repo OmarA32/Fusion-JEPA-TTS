@@ -25,35 +25,35 @@ from text import (
     phonemes_to_tokens
 )
 
-def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=55, min_phonemes=18):
+def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=70, min_phonemes=28):
     """
     Splits long text or phoneme streams into natural prosodic clauses.
-    1. Splits primarily on punctuation boundaries (., !, ?, ;, ,, ،, ؛).
-    2. If a single unpunctuated sentence is long (>55 phonemes / ~4.8s), sub-splits at word boundaries.
-    3. Merges orphan trailing fragments (<= 2 words) into the preceding chunk.
+    1. Splits primarily on sentence boundaries (., !, ?, \n, ؟).
+    2. Keeps full sentences together (up to ~70 phonemes / ~5.0s) so the model receives
+       rich, natural context matching training duration.
+    3. If a single unpunctuated sentence is excessively long (>70 phonemes), sub-splits at
+       comma/pause boundaries or words without creating tiny fragments.
     """
     text = text.strip()
     if not text:
         return []
 
-    # 1. Primary Split: Standard punctuation boundaries
-    punct_pattern = r'[\n\.\!\?\,\;\:\–\—\،\؛\؟]+'
-    raw_clauses = [c.strip() for c in re.split(punct_pattern, text) if c.strip()]
+    # 1. Primary Split: Sentence-level punctuation (. ! ? \n ؟)
+    sentence_punct = r'[\n\.\!\?؟]+'
+    raw_sentences = [s.strip() for s in re.split(sentence_punct, text) if s.strip()]
     
-    if not raw_clauses:
-        raw_clauses = [text]
+    if not raw_sentences:
+        raw_sentences = [text]
 
     chunks = []
 
-    for clause in raw_clauses:
-        words = clause.split()
+    for sentence in raw_sentences:
+        words = sentence.split()
         if not words:
             continue
 
-        clause_chunks = []
-        current_words = []
-        current_tokens = []
-
+        # Count total phonemes for this sentence
+        sentence_tokens = []
         for word in words:
             try:
                 if lang == "arabic":
@@ -63,29 +63,61 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=55, min_phoneme
                 valid_word_tokens = [t for t in word_tokens if t in phon_to_id_]
             except Exception:
                 valid_word_tokens = list(word)
+            sentence_tokens.extend(valid_word_tokens)
 
-            if len(current_tokens) + len(valid_word_tokens) > max_phonemes and len(current_tokens) >= min_phonemes:
-                clause_chunks.append((" ".join(current_words), current_tokens))
-                current_words = [word]
-                current_tokens = valid_word_tokens
+        # If the sentence fits comfortably in canvas (<= max_phonemes), keep it whole!
+        if len(sentence_tokens) <= max_phonemes:
+            chunks.append((" ".join(words), sentence_tokens))
+        else:
+            # Check if sub-splitting by commas/semicolons yields clean medium chunks
+            sub_clauses = [c.strip() for c in re.split(r'[\,\;\:\–\—\،\؛]+', sentence) if c.strip()]
+            
+            # If comma split exists and each clause is reasonable
+            if len(sub_clauses) > 1:
+                for c in sub_clauses:
+                    c_words = c.split()
+                    c_tokens = []
+                    for w in c_words:
+                        try:
+                            w_toks = arabic_to_tokens(w) if lang == "arabic" else english_to_tokens(w)
+                            c_tokens.extend([t for t in w_toks if t in phon_to_id_])
+                        except Exception:
+                            c_tokens.extend(list(w))
+                    chunks.append((" ".join(c_words), c_tokens))
             else:
-                current_words.append(word)
-                current_tokens.extend(valid_word_tokens)
+                # Word-budget split for very long unpunctuated runs
+                current_words = []
+                current_tokens = []
+                sub_chunks = []
+                for word in words:
+                    try:
+                        w_toks = arabic_to_tokens(word) if lang == "arabic" else english_to_tokens(word)
+                        valid_toks = [t for t in w_toks if t in phon_to_id_]
+                    except Exception:
+                        valid_toks = list(word)
 
-        if current_words:
-            if clause_chunks and (len(current_words) <= 2 or len(current_tokens) < min_phonemes):
-                prev_text, prev_tokens = clause_chunks[-1]
-                clause_chunks[-1] = (prev_text + " " + " ".join(current_words), prev_tokens + current_tokens)
-            else:
-                clause_chunks.append((" ".join(current_words), current_tokens))
+                    if len(current_tokens) + len(valid_toks) > max_phonemes and len(current_tokens) >= min_phonemes:
+                        sub_chunks.append((" ".join(current_words), current_tokens))
+                        current_words = [word]
+                        current_tokens = valid_toks
+                    else:
+                        current_words.append(word)
+                        current_tokens.extend(valid_toks)
 
-        chunks.extend(clause_chunks)
+                if current_words:
+                    if sub_chunks and (len(current_words) <= 3 or len(current_tokens) < min_phonemes):
+                        prev_text, prev_tokens = sub_chunks[-1]
+                        sub_chunks[-1] = (prev_text + " " + " ".join(current_words), prev_tokens + current_tokens)
+                    else:
+                        sub_chunks.append((" ".join(current_words), current_tokens))
 
-    # 2. Final global sweep: merge any orphan chunk with <= 2 words into its predecessor
+                chunks.extend(sub_chunks)
+
+    # 2. Final global sweep: merge any small orphan chunk (<= 3 words or < min_phonemes) into predecessor
     cleaned_chunks = []
     for c_text, c_tokens in chunks:
         words = c_text.split()
-        if cleaned_chunks and (len(words) <= 2 or len(c_tokens) < min_phonemes):
+        if cleaned_chunks and (len(words) <= 3 or len(c_tokens) < min_phonemes):
             prev_text, prev_tokens = cleaned_chunks[-1]
             cleaned_chunks[-1] = (prev_text + " " + c_text, prev_tokens + c_tokens)
         else:
