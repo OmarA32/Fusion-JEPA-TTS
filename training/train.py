@@ -87,12 +87,18 @@ class HuggingFaceUploadCallback(L.Callback):
                     print(f"[HF Upload] Error: {e}")
 
 class SaveLastCheckpointCallback(L.Callback):
-    def __init__(self, save_interval_epochs=5):
+    def __init__(self, save_interval_epochs=5, hf_upload_interval=0):
         self.save_interval_epochs = save_interval_epochs
+        self.hf_upload_interval = hf_upload_interval
 
     def on_train_epoch_end(self, trainer, pl_module):
         epoch = trainer.current_epoch + 1
-        if epoch % self.save_interval_epochs == 0 or epoch >= trainer.max_epochs:
+        should_save = (
+            epoch % self.save_interval_epochs == 0
+            or (self.hf_upload_interval > 0 and epoch % self.hf_upload_interval == 0)
+            or epoch >= trainer.max_epochs
+        )
+        if should_save:
             ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
             trainer.save_checkpoint(ckpt_path)
 
@@ -267,7 +273,7 @@ def main():
     else:
         # Save every 5 epochs for Arabic (every 285 steps), 1 epoch for English (every 410 steps)
         save_interval = 5 if args.lang == "arabic" else 1
-        checkpoint_callback = SaveLastCheckpointCallback(save_interval_epochs=save_interval)
+        checkpoint_callback = SaveLastCheckpointCallback(save_interval_epochs=save_interval, hf_upload_interval=args.checkpointnum)
 
     callbacks_list = [checkpoint_callback, TQDMProgressBar(refresh_rate=1)]
     
