@@ -212,9 +212,9 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="JEPA TTS Inference")
     parser.add_argument("--text", type=str, default="مَرْحَبَاً بِكُمْ فِي هَذَا الِاخْتِبَار", help="Text to synthesize")
-    parser.add_argument("--output", type=str, default="output_test.wav", help="Output WAV file path")
+    parser.add_argument("--output", "--file_name", dest="output", type=str, default=None, help="Output WAV file path or filename")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language of the model.")
-    parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database the model was trained on.")
+    parser.add_argument("--db", type=str, default=None, choices=["common_voice", "nawar_halabi", "clartts", "libritts", "ljspeech"], help="Database to fetch index from (only used with --index).")
     parser.add_argument("--index", type=int, default=None, help="Optionally fetch text directly from the test dataset by index.")
     parser.add_argument("--ckpt", type=str, default=None, help="Explicit path to a .ckpt or .pt model checkpoint.")
     parser.add_argument('--cfg-scale', type=float, default=7.0, help="Classifier-Free Guidance scale (1.0 disables it).")
@@ -222,17 +222,23 @@ if __name__ == "__main__":
     parser.add_argument('--save-mel', action='store_true', help="Save an image of the mel spectrogram(s)")
     args = parser.parse_args()
 
-    valid_dbs = {
-        "arabic": ["common_voice", "nawar_halabi", "clartts"],
-        "english": ["libritts", "ljspeech"]
-    }
-    if args.db not in valid_dbs[args.lang]:
-        print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
-        print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
-        sys.exit(1)
-        
     os.makedirs("test_results", exist_ok=True)
+    
+    mel_gt = None
     if args.index is not None:
+        valid_dbs = {
+            "arabic": ["common_voice", "nawar_halabi", "clartts"],
+            "english": ["libritts", "ljspeech"]
+        }
+        # Default database if not explicitly set
+        if args.db is None:
+            args.db = "nawar_halabi" if args.lang == "arabic" else "ljspeech"
+            
+        if args.db not in valid_dbs[args.lang]:
+            print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
+            print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
+            sys.exit(1)
+
         from data.dataset import JEPADataset
         print(f"Loading {args.lang.upper()} {args.db.upper()} test dataset to fetch index {args.index}...")
         test_dataset = JEPADataset(split="test", lang=args.lang, db=args.db)
@@ -240,27 +246,32 @@ if __name__ == "__main__":
             print(f"[ERROR] Index {args.index} is out of bounds! The dataset only has {len(test_dataset)} items.")
             sys.exit(1)
             
-        # Extract original text directly from HuggingFace dataset object
+        # Extract original text directly from dataset object
         item_raw = test_dataset.dataset[args.index]
         args.text = item_raw.get('sentence', item_raw.get('text', ''))
         print(f"\n[Index {args.index} Text]: {args.text}\n")
         
-        mel_gt = None
         if args.save_mel:
             print("Fetching ground truth mel spectrogram...")
             item_processed = test_dataset[args.index]
             mel_gt = item_processed['mel_tgt']
         
-        args.output = f"test_results/inference_index_{args.index}.wav"
+        # Default output naming for index if no custom output filename provided
+        if not args.output:
+            args.output = f"test_results/inference_index_{args.index}.wav"
+        elif not os.path.dirname(args.output):
+            args.output = os.path.join("test_results", args.output)
     else:
-        mel_gt = None
-        if not os.path.dirname(args.output):
+        # Default output naming for custom text if not provided
+        if not args.output:
+            args.output = "test_results/output_test.wav"
+        elif not os.path.dirname(args.output):
             args.output = os.path.join("test_results", args.output)
     
     generate_audio(
         text=args.text, 
         lang=args.lang, 
-        db=args.db, 
+        db=args.db or ("nawar_halabi" if args.lang == "arabic" else "ljspeech"), 
         output_path=args.output, 
         save_mel=args.save_mel, 
         mel_gt=mel_gt, 
