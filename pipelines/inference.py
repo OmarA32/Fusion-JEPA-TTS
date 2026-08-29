@@ -19,7 +19,7 @@ except ImportError:
     pass
 
 from models.jepa import JEPA_base
-from vocoder_manager import VocoderManager
+from models.vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
 def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None, sample_rate=44100, hop_length=512):

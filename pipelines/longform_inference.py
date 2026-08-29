@@ -20,7 +20,7 @@ except ImportError:
     pass
 
 from models.jepa import JEPA_base
-from vocoder_manager import VocoderManager
+from models.vocoder_manager import VocoderManager
 from text import (
     arabic_to_tokens, 
     english_to_tokens, 

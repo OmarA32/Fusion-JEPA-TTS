@@ -11,7 +11,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from data.dataset import JEPADataset
-from vocoder_manager import VocoderManager
+from models.vocoder_manager import VocoderManager
 
 def main():
     parser = argparse.ArgumentParser(description="Test BigVGAN Ground Truth Vocoding")

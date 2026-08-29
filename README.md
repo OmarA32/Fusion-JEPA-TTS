@@ -204,6 +204,7 @@ python tools/upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 
 ```text
 ├── app.py                      # Interactive Streamlit Web Studio
+├── supercomputer_training.ipynb# Distributed HPC, Colab & Kaggle Training Notebook
 ├── requirements.txt            # Python Dependencies
 ├── README.md                   # Project Documentation
 ├── LICENSE                     # MIT License
@@ -213,11 +214,10 @@ python tools/upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 │   ├── longform_inference.py   # Multi-paragraph chunking & cross-fading
 │   └── overfit_inference.py    # Overfit evaluation script
 │
-├── training/                   # Model Training & Supercomputer Scripts
+├── training/                   # Model Training Scripts
 │   ├── train.py                # Multi-GPU training script (PyTorch Lightning)
 │   ├── train_xpu.py            # Intel XPU accelerator training script
-│   ├── overfit_train.py        # Single-sample convergence tester
-│   └── supercomputer_training.ipynb # Distributed HPC training notebook
+│   └── overfit_train.py        # Single-sample convergence tester
 │
 ├── tools/                      # Cloud Synchronization & Evaluation Tools
 │   ├── download_from_hf.py     # Checkpoint downloader
@@ -236,7 +236,8 @@ python tools/upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 ├── models/                     # Fusion-JEPA Neural Implementations
 │   ├── block.py                # MM-DiT & 1D RoPE Attention Blocks
 │   ├── jepa.py                 # Core Fusion-JEPA Architecture
-│   └── jepa_lightning.py       # PyTorch Lightning Module with Lv + Lp loss
+│   ├── jepa_lightning.py       # PyTorch Lightning Module with Lv + Lp loss
+│   └── vocoder_manager.py      # BigVGAN Vocoder Manager & Wrapper
 │
 ├── data/                       # Dataset Loaders & Speech Corpora
 ├── text/                       # Multilingual G2P & Phonetic Tokenizers

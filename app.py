@@ -15,7 +15,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 # Import core Fusion-JEPA components
 from models.jepa import JEPA_base
-from vocoder_manager import VocoderManager
+from models.vocoder_manager import VocoderManager
 from data.dataset import JEPADataset
 from text.phonetise_buckwalter import buckwalter_to_arabic
 from pipelines.longform_inference import (

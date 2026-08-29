@@ -1,5 +1,14 @@
+import os
 import sys
 import torch
+
+# Ensure BigVGAN submodule is in sys.path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+bigvgan_dir = os.path.join(PROJECT_ROOT, "BigVGAN")
+if bigvgan_dir not in sys.path:
+    sys.path.insert(0, bigvgan_dir)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 class VocoderManager:
     """
