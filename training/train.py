@@ -99,9 +99,10 @@ class SaveLastCheckpointCallback(L.Callback):
             or (self.hf_upload_interval > 0 and epoch % self.hf_upload_interval == 0)
             or epoch >= trainer.max_epochs
         )
-        if should_save:
+        if should_save and trainer.is_global_zero:
             ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
             trainer.save_checkpoint(ckpt_path)
+            print(f"\n💾 [Checkpoint Saved] Successfully updated '{ckpt_path}' at Epoch {epoch}!")
 
 def get_latest_checkpoint(log_dir):
     """Finds the most recent checkpoint recursively inside the log directory."""
@@ -309,6 +310,7 @@ def main():
         devices="auto",
         strategy=lightning_strategy,
         precision="16-mixed", # ⚡ NVIDIA T4 FIX: T4s use Turing architecture which requires standard 16-bit for Tensor Core speedups!
+        enable_checkpointing=args.val, # Disable Lightning's hidden auto-checkpointing unless validation is active
         limit_val_batches=1.0 if args.val else 0.0,
         log_every_n_steps=50,
         gradient_clip_val=1.0,
