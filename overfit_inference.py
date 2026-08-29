@@ -16,7 +16,80 @@ from models.jepa import JEPA_base
 from vocoder_manager import VocoderManager
 from text import arabic_to_tokens, tokens_to_ids
 
-def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", save_mel=False, mel_gt=None, cfg_scale=3.0, steps=60, ckpt_path=None):
+def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None, sample_rate=44100, hop_length=512):
+    """
+    4-Stage Adaptive Boundary Detector:
+    Truncates hallucinated tail noise after the utterance naturally finishes,
+    while preserving intra-sentence pauses and soft trailing consonants.
+    """
+    import numpy as np
+    
+    if isinstance(audio_waveform, torch.Tensor):
+        audio = audio_waveform.detach().cpu().squeeze().numpy()
+    else:
+        audio = np.squeeze(audio_waveform)
+        
+    if isinstance(mel_spectrogram, torch.Tensor):
+        mel = mel_spectrogram.detach().cpu().squeeze().numpy()
+    else:
+        mel = np.squeeze(mel_spectrogram)
+        
+    n_frames = mel.shape[-1]
+    
+    # 1. Compute frame energy in linear power domain
+    mel_linear = np.exp(mel) if mel.min() < 0 else mel
+    frame_energy = np.mean(mel_linear, axis=0)
+    
+    # 5-frame moving average (~58ms smoothing)
+    kernel_size = 5
+    kernel = np.ones(kernel_size) / kernel_size
+    smoothed_energy = np.convolve(frame_energy, kernel, mode='same')
+    
+    # 2. Dynamic thresholding adapting to speaker level and noise floor
+    e_peak = np.percentile(smoothed_energy, 95)
+    e_floor = np.percentile(smoothed_energy, 5)
+    e_thresh = e_floor + 0.08 * (e_peak - e_floor)
+    
+    # 3. Linguistic Duration Anchor (Phoneme prior)
+    # Speech rate ~8-12 frames/phoneme; never cut before 6.5 frames/phoneme
+    if num_phonemes is not None and num_phonemes > 0:
+        min_search_frame = max(20, int(num_phonemes * 6.5))
+    else:
+        min_search_frame = 30
+        
+    min_search_frame = min(min_search_frame, n_frames - 30)
+    
+    # 4. Search for sustained silence (>= 18 consecutive frames ~ 210ms)
+    silence_run_required = 18
+    current_run = 0
+    cut_frame = n_frames
+    
+    for t in range(min_search_frame, n_frames):
+        if smoothed_energy[t] < e_thresh:
+            current_run += 1
+            if current_run >= silence_run_required:
+                # Add a gentle 8-frame (~90ms) room decay pad
+                cut_frame = min(n_frames, (t - silence_run_required) + 8)
+                break
+        else:
+            current_run = 0
+            
+    cut_sample = min(len(audio), int(cut_frame * hop_length))
+    clean_audio = audio[:cut_sample].copy()
+    
+    # Smooth 20ms raised-cosine fade-out to prevent pops/clicks
+    fade_len = min(len(clean_audio), int(sample_rate * 0.020))
+    if fade_len > 0:
+        fade_curve = 0.5 * (1.0 + np.cos(np.linspace(0, np.pi, fade_len)))
+        clean_audio[-fade_len:] *= fade_curve
+        
+    if cut_frame < n_frames:
+        trimmed_sec = (n_frames - cut_frame) * hop_length / sample_rate
+        print(f"[Smart Truncate] Trimmed {trimmed_sec:.2f}s of unconditioned tail noise (Sentence ended at frame {cut_frame}/{n_frames}).")
+        
+    return clean_audio, cut_frame
+
+def generate_audio(text, lang="arabic", db="common_voice", output_path="output_test.wav", save_mel=False, mel_gt=None, cfg_scale=3.0, steps=60, ckpt_path=None, trim_silence=True):
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         device = torch.device("xpu")
     elif torch.cuda.is_available():
@@ -198,13 +271,23 @@ def generate_audio(text, lang="arabic", db="common_voice", output_path="output_t
     import numpy as np
     
     sample_rate = 44100
-    audio_np = audio_waveform.squeeze().cpu().numpy()
+    
+    if trim_silence:
+        audio_np, cut_frame = truncate_trailing_silence(
+            audio_waveform=audio_waveform,
+            mel_spectrogram=mel_for_vocoder,
+            num_phonemes=len(tokens),
+            sample_rate=sample_rate,
+            hop_length=512
+        )
+    else:
+        audio_np = audio_waveform.squeeze().cpu().numpy()
     
     audio_np = audio_np / max(abs(audio_np).max(), 1e-8)
     audio_int16 = (audio_np * 32767).astype(np.int16)
     
     wavfile.write(output_path, sample_rate, audio_int16)
-    print(f"Synthesis Complete! Audio saved to: {output_path}")
+    print(f"Synthesis Complete! Audio saved to: {output_path} ({len(audio_np)/sample_rate:.2f}s)")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="JEPA TTS Overfit Inference")
@@ -217,6 +300,7 @@ if __name__ == "__main__":
     parser.add_argument('--cfg-scale', type=float, default=7.0, help="Classifier-Free Guidance scale (1.0 disables it).")
     parser.add_argument('--steps', type=int, default=60, help="Number of diffusion steps for Flow Matching.")
     parser.add_argument('--save-mel', action='store_true', help="Save an image of the mel spectrogram(s)")
+    parser.add_argument('--no-trim', action='store_true', help="Disable automatic post-speech silence trimming")
     args = parser.parse_args()
 
     os.makedirs("test_results", exist_ok=True)
@@ -274,5 +358,6 @@ if __name__ == "__main__":
         mel_gt=mel_gt, 
         cfg_scale=args.cfg_scale, 
         steps=args.steps,
-        ckpt_path=args.ckpt
+        ckpt_path=args.ckpt,
+        trim_silence=not args.no_trim
     )
