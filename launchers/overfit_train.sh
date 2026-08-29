@@ -1,24 +1,37 @@
 #!/bin/bash
 cd "$(dirname "$0")/.."
-[ -f "venv/bin/activate" ] && source venv/bin/activate
 
-ARGS="$@"
-
-if [ -z "$ARGS" ]; then
-    echo "========================================================="
-    echo "  No arguments provided."
-    echo ""
-    echo "  Available Arguments:"
-    echo "    --lang           [arabic, english] (Optional: Language of the model)"
-    echo "    --db             [common_voice, nawar_halabi, ljspeech, clartts, libritts] (Optional: Dataset database)"
-    echo "    --val            (Optional: Flag to enable validation loops)"
-    echo "    --resume         (Optional: Flag to resume from the latest checkpoint)"
-    echo "    --freeze_jepa    (Optional: Freeze the ViT backbone and train only the Diffusion MLP)"
-    echo "    --freeze_diffuser(Optional: Freeze the SpatialDiT diffuser and train only the JEPA backbone)"
-    echo ""
-    echo "  Defaults: --lang arabic --db nawar_halabi"
-    echo "========================================================="
-    read -p "Enter arguments (or press Enter to use defaults): " ARGS
+if [ ! -f "BigVGAN/meldataset.py" ]; then
+    echo "Initializing BigVGAN neural vocoder submodule..."
+    git submodule update --init --recursive
 fi
 
-python overfit_train.py $ARGS
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+fi
+
+if [ $# -eq 0 ]; then
+    echo "=============================================================================="
+    echo "  Fusion-JEPA Overfitting Training Runner (Single Sample Convergence Test)"
+    echo "=============================================================================="
+    echo ""
+    echo "  Available Arguments:"
+    echo "    --lang             [arabic, english] Language of the model (default: english)"
+    echo "    --db               [nawar_halabi, common_voice, clartts, ljspeech, libritts] Dataset"
+    echo "    --index            Sample index to overfit on (default: 108 for English, 107 for Arabic)"
+    echo "    --epochs           Total number of epochs (default: 5000)"
+    echo "    --lr               Learning rate for AdamW (default: 1e-4)"
+    echo "    --resume           Flag to resume from existing overfit checkpoint"
+    echo "    --freeze_jepa      Flag to freeze ViT backbone"
+    echo "    --freeze_diffuser  Flag to freeze DiT diffuser"
+    echo "    --save-mel         Flag to save generated Mel comparison during evaluation"
+    echo ""
+    echo "  Examples:"
+    echo "    bash launchers/overfit_train.sh --lang english --db ljspeech --index 108 --epochs 5000"
+    echo "    bash launchers/overfit_train.sh --lang arabic --db nawar_halabi --index 107 --epochs 5000"
+    echo "=============================================================================="
+    read -p "Enter arguments (or press Enter for default English overfitting): " -r user_args
+    python overfit_train.py $user_args
+else
+    python overfit_train.py "$@"
+fi

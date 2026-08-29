@@ -9,22 +9,29 @@ if exist "venv\Scripts\activate.bat" call venv\Scripts\activate.bat
 set "args=%*"
 
 if "%args%"=="" (
-    echo =========================================================
-    echo   No arguments provided.
+    echo ==============================================================================
+    echo   Fusion-JEPA Full Distributed Training Runner
+    echo ==============================================================================
     echo.
     echo   Available Arguments:
-    echo     --lang           [arabic, english] (Optional: Language of the model)
-    echo     --db             [common_voice, nawar_halabi, ljspeech, clartts, libritts] (Optional: Dataset database)
-    echo     --val            (Optional: Flag to enable validation loops)
-    echo     --resume         (Optional: Flag to resume from the latest checkpoint)
-    echo     --freeze_jepa    (Optional: Freeze the ViT backbone and train only the Diffusion MLP)
-    echo     --freeze_diffuser(Optional: Freeze the SpatialDiT diffuser and train only the JEPA backbone)
-    echo     --epochs         (Optional: Maximum number of epochs to train, e.g. 2600)
-    echo     --checkpointnum  (Optional: Number of epochs between auto-uploads to HF)
+    echo     --lang             [arabic, english] Language of the model (default: arabic)
+    echo     --db               [nawar_halabi, common_voice, clartts, ljspeech, libritts] Dataset to train on
+    echo     --epochs           Total number of epochs to train (default: 2600)
+    echo     --batch_size       Batch size per GPU (default: 16)
+    echo     --lr               Learning rate for AdamW (default: 1e-4)
+    echo     --resume           Flag to automatically resume from latest checkpoint
+    echo     --download_latest  Flag to download latest checkpoint from Hugging Face if missing
+    echo     --val              Flag to enable validation evaluation loop
+    echo     --freeze_jepa      Flag to freeze ViT backbone and train only Flow Matching DiT
+    echo     --freeze_diffuser  Flag to freeze DiT diffuser and train only JEPA backbone
+    echo     --checkpointnum    Epoch interval between Hugging Face auto-uploads (e.g. 80 or 150)
+    echo     --hf_token         Hugging Face user access token for automated sync
     echo.
-    echo   Defaults: --lang arabic --db nawar_halabi
-    echo =========================================================
-    set /p args="Enter arguments (or press Enter to use defaults): "
+    echo   Examples:
+    echo     launchers\train.bat --lang arabic --db nawar_halabi --resume --checkpointnum 150
+    echo     launchers\train.bat --lang english --db ljspeech --resume --checkpointnum 80
+    echo ==============================================================================
+    set /p args="Enter arguments (or press Enter for default Arabic training): "
 )
 
 python train.py %args%

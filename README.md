@@ -70,44 +70,115 @@ bash launchers/setup_env.sh
 
 ---
 
-### 2. Speech Synthesis (Inference)
+## 💻 CLI & Launcher Reference
 
-Generate speech from arbitrary text or dataset index using BigVGAN v2 vocoding:
+Fusion-JEPA provides unified command-line scripts and automated batch/shell wrappers in `launchers/`.
+
+### 1. Speech Synthesis (`inference.py` / `launchers/inference.*`)
+
+Synthesizes high-fidelity 44.1 kHz audio from text prompts or dataset indices using BigVGAN v2 vocoding and adaptive silence truncation.
 
 ```bash
-# Arabic Synthesis
-python inference.py --lang arabic --text "وَتَتَضَمَّنُ حَفَلَاتٍ لِمُوسِيقَى الْجَازِ"
-
-# English Synthesis
+# Basic English Synthesis (with automatic silence trimming)
 python inference.py --lang english --text "This is Fusion JEPA text to speech synthesis."
 
-# Synthesize by dataset index (LJSpeech or Nawar Halabi)
-python inference.py --lang english --db ljspeech --index 71
+# Arabic Synthesis with Mel-Spectrogram saving
+python inference.py --lang arabic --text "وَتَتَضَمَّنُ حَفَلَاتٍ لِمُوسِيقَى الْجَازِ" --save-mel
+
+# Synthesize directly by dataset test index (LJSpeech or Nawar Halabi)
+python inference.py --lang english --db ljspeech --index 108 --save-mel
+
+# Using Launcher Wrappers:
+# Windows:
+launchers\inference.bat --lang english --text "Hello world"
+# Linux/Mac:
+bash launchers/inference.sh --lang english --text "Hello world"
 ```
+
+| Argument | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--text` | `str` | Arabic Greeting | Custom text string or diacritized Arabic/English to synthesize |
+| `--output`, `--file_name` | `str` | `output_test.wav` | Output WAV audio destination path or filename |
+| `--lang` | `str` | `arabic` | Model language: `arabic` or `english` |
+| `--db` | `str` | Auto | Dataset to fetch index from (only used with `--index`): `nawar_halabi`, `common_voice`, `clartts`, `ljspeech`, `libritts` |
+| `--index` | `int` | `None` | Sample index to fetch ground-truth text and reference Mel from test split |
+| `--ckpt` | `str` | `None` | Explicit path to a `.ckpt` (Lightning) or `.pt` checkpoint file |
+| `--cfg-scale` | `float` | `7.0` | Classifier-Free Guidance scale ($1.0 = \text{unconditional}$) |
+| `--steps` | `int` | `60` | Number of Euler ODE Flow Matching diffusion integration steps |
+| `--save-mel` | `flag` | `False` | Save generated Mel-spectrogram comparison plot (`.png`) |
+| `--no-trim` | `flag` | `False` | Disable automatic 4-stage post-speech silence and hallucination trimming |
 
 ---
 
-### 3. Model Training
+### 2. Model Training (`train.py` / `launchers/train.*`)
 
-Train the dual-loss Fusion-JEPA architecture with PyTorch Lightning:
+Full distributed training of the dual-objective Fusion-JEPA architecture ($\mathcal{L}_v + \mathcal{L}_p$) with PyTorch Lightning.
 
 ```bash
-# Train on Arabic Speech Corpus (Nawar Halabi)
-python train.py --lang arabic --db nawar_halabi --checkpointnum 5
+# Train on Arabic Speech Corpus (Nawar Halabi) with checkpoint syncing
+python train.py --lang arabic --db nawar_halabi --epochs 2600 --checkpointnum 150 --hf_token "hf_..."
 
 # Train on LJSpeech (English)
-python train.py --lang english --db ljspeech --checkpointnum 5
+python train.py --lang english --db ljspeech --epochs 2600 --checkpointnum 80 --resume
+
+# Using Launcher Wrappers:
+# Windows:
+launchers\train.bat --lang arabic --db nawar_halabi --resume
+# Linux/Mac:
+bash launchers/train.sh --lang arabic --db nawar_halabi --resume
 ```
+
+| Argument | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--lang` | `str` | `arabic` | Training language: `arabic` or `english` |
+| `--db` | `str` | `nawar_halabi` | Dataset: `nawar_halabi`, `common_voice`, `clartts`, `ljspeech`, `libritts` |
+| `--epochs` | `int` | `2600` | Maximum number of training epochs |
+| `--batch_size` | `int` | `16` | Per-GPU batch size |
+| `--lr` | `float` | `1e-4` | Learning rate for AdamW optimizer |
+| `--resume` | `flag` | `False` | Automatically resume from latest checkpoint in `training_logs/<lang>/` |
+| `--download_latest` | `flag` | `False` | Auto-download latest Hugging Face checkpoint if missing locally |
+| `--val` | `flag` | `False` | Enable periodic validation evaluation loops |
+| `--freeze_jepa` | `flag` | `False` | Freeze ViT encoder backbone and train only Flow Matching MM-DiT |
+| `--freeze_diffuser` | `flag` | `False` | Freeze SpatialDiT diffuser and train only JEPA backbone |
+| `--checkpointnum` | `int` | `0` | Epoch interval for automatic model checkpoint upload to Hugging Face |
+| `--hf_token` | `str` | `None` | Hugging Face access token for automated model synchronization |
 
 ---
 
-### 4. Overfitting Verification Protocol
+### 3. Single-Sample Overfitting Verification (`overfit_train.py` & `overfit_inference.py`)
 
-To verify architecture convergence and eliminate representation collapse before full cluster scaling:
+Verifies architecture convergence, flow velocity alignment, and eliminates representation collapse on a single sample:
 
 ```bash
-python overfit_test.py --lang english --epochs 500
-python overfit_test.py --lang arabic --epochs 500
+# 1. Overfit Train on English LJSpeech Sample (Index 108)
+python overfit_train.py --lang english --db ljspeech --index 108 --epochs 5000
+
+# 2. Overfit Train on Arabic Nawar Halabi Sample (Index 107)
+python overfit_train.py --lang arabic --db nawar_halabi --index 107 --epochs 5000
+
+# 3. Evaluate Overfit Synthesis & Compare Spectrograms
+python overfit_inference.py --lang english --db ljspeech --index 108 --save-mel
+python overfit_inference.py --lang arabic --db nawar_halabi --index 107 --save-mel
+```
+
+| Argument | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--index` | `int` | `108` / `107` | Fixed dataset sample index to overfit |
+| `--epochs` | `int` | `5000` | Total overfitting epochs |
+| `--lr` | `float` | `1e-4` | Learning rate |
+| `--save-mel` | `flag` | `False` | Render and save side-by-side ground truth vs generated spectrograms |
+
+---
+
+### 4. Hugging Face Checkpoint Sync (`download_from_hf.py` & `upload_to_hf.py`)
+
+```bash
+# Download latest English or Arabic model weights
+python download_from_hf.py --lang english
+python download_from_hf.py --lang arabic
+
+# Upload local checkpoint
+python upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 ```
 
 ---
