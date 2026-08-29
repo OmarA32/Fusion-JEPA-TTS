@@ -38,7 +38,7 @@ def count_phonemes(text, lang="arabic"):
     except Exception:
         return list(text)
 
-def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=75, min_phonemes=20):
+def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=90, min_phonemes=20):
     """
     4-Level Hierarchical Prosodic Chunker:
     1. Sentence boundaries (\n, ., !, ?, ؟)
@@ -227,28 +227,33 @@ def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None
     e_thresh = e_floor + 0.08 * (e_peak - e_floor)
     
     # 3. Linguistic Duration Anchor (Phoneme prior)
+    # Average speaking rate: ~14-16 phonemes per second (~5.5-6.5 frames per phoneme)
     if num_phonemes is not None and num_phonemes > 0:
-        min_search_frame = max(20, int(num_phonemes * 6.5))
+        min_search_frame = max(15, int(num_phonemes * 5.0))
+        max_expected_frame = min(n_frames, int(num_phonemes * 7.5) + 15)
     else:
         min_search_frame = 30
+        max_expected_frame = n_frames
         
-    min_search_frame = min(min_search_frame, n_frames - 30)
+    min_search_frame = min(min_search_frame, n_frames - 20)
     
-    # 4. Search for sustained silence (>= 18 consecutive frames ~ 210ms)
-    silence_run_required = 18
+    # 4. Search for sustained silence (>= 12 consecutive frames ~ 140ms)
+    silence_run_required = 12
     current_run = 0
-    cut_frame = n_frames
+    cut_frame = max_expected_frame
     
     for t in range(min_search_frame, n_frames):
         if smoothed_energy[t] < e_thresh:
             current_run += 1
             if current_run >= silence_run_required:
-                # Add a gentle 8-frame (~90ms) room decay pad
-                cut_frame = min(n_frames, (t - silence_run_required) + 8)
+                # Add a gentle 6-frame (~70ms) room decay pad
+                cut_frame = min(n_frames, (t - silence_run_required) + 6)
                 break
         else:
             current_run = 0
             
+    # Never exceed max_expected_frame to eliminate any potential trailing hallucinations
+    cut_frame = min(cut_frame, max_expected_frame)
     cut_sample = min(len(audio), int(cut_frame * hop_length))
     clean_audio = audio[:cut_sample].copy()
     
@@ -389,7 +394,7 @@ def generate_longform_speech(
     vocoder_instance = VocoderManager(device=device)
 
     # 4. Prosodic Chunking
-    chunks = split_into_prosodic_chunks(text, lang=lang, max_phonemes=75, min_phonemes=20)
+    chunks = split_into_prosodic_chunks(text, lang=lang, max_phonemes=90, min_phonemes=20)
     print(f"\n[Long-Form Plan] Split input into {len(chunks)} coherent prosodic clause(s):")
     for i, (c_text, _) in enumerate(chunks):
         print(f"  Clause {i+1}/{len(chunks)}: \"{c_text}\"")

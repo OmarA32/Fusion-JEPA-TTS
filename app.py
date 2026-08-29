@@ -522,7 +522,7 @@ if generate_btn:
 
         # Step 1: Prosodic chunking
         with st.spinner("Analyzing linguistic prosody & sentence segmentation..."):
-            chunks = split_into_prosodic_chunks(main_text, lang=lang_now, max_phonemes=75, min_phonemes=20)
+            chunks = split_into_prosodic_chunks(main_text, lang=lang_now, max_phonemes=90, min_phonemes=20)
 
         if not chunks:
             st.error("No valid text clauses found to synthesize.")
