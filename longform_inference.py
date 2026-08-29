@@ -391,6 +391,10 @@ if __name__ == "__main__":
         else:
             raw_text = "Fusion-JEPA is a deep multimodal architecture designed for expressive text-to-speech synthesis, achieving studio-quality audio through continuous flow matching and joint-embedding representations."
 
+    # Ensure output path defaults into test_results/ if not specified
+    if not os.path.dirname(args.output):
+        args.output = os.path.join("test_results", args.output)
+
     generate_longform_speech(
         text=raw_text,
         lang=args.lang,
