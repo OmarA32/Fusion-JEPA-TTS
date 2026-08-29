@@ -14,3 +14,4 @@ librosa
 arabic_reshaper
 imageio[ffmpeg]
 pydub
+streamlit
