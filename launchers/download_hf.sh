@@ -1,19 +1,26 @@
 #!/bin/bash
 cd "$(dirname "$0")/.."
-[ -f "venv/bin/activate" ] && source venv/bin/activate
 
-ARGS="$@"
-
-if [ -z "$ARGS" ]; then
-    echo "========================================================="
-    echo "  No arguments provided."
-    echo ""
-    echo "  Available Arguments:"
-    echo "    --lang           [arabic, english] (Optional: Language of the model to download)"
-    echo ""
-    echo "  Defaults: --lang arabic"
-    echo "========================================================="
-    read -p "Enter arguments (or press Enter to use defaults): " ARGS
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
 fi
 
-python download_from_hf.py $ARGS
+if [ $# -eq 0 ]; then
+    echo "=============================================================================="
+    echo "  Hugging Face Model Downloader"
+    echo "=============================================================================="
+    echo ""
+    echo "  Available Arguments:"
+    echo "    --lang      [arabic, english] Model language checkpoint to download"
+    echo "    --token     Hugging Face user access token (optional if set in hf_config.json)"
+    echo "    --repo      Hugging Face repository ID (default: KAST-JEPA-QUANTIZED/Arabic or English)"
+    echo ""
+    echo "  Examples:"
+    echo "    bash launchers/download_hf.sh --lang arabic"
+    echo "    bash launchers/download_hf.sh --lang english"
+    echo "=============================================================================="
+    read -p "Enter arguments (or press Enter for Arabic): " -r user_args
+    python download_from_hf.py $user_args
+else
+    python download_from_hf.py "$@"
+fi
