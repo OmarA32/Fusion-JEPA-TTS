@@ -137,7 +137,10 @@ def main():
     print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")
     train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
     val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
-    workers = 4 if os.name != 'nt' else 0
+    is_linux = (os.name != 'nt')
+    workers = 4 if is_linux else 0
+    use_pin = (device.type in ["cuda", "xpu"])
+    use_persistent = (workers > 0)
 
     # Robust Multi-GPU batch scaling
     num_gpus = torch.cuda.device_count() if device.type == "cuda" else 0
@@ -152,7 +155,9 @@ def main():
         batch_size=batch_size, 
         shuffle=True, 
         collate_fn=jepa_collate_fn,
-        num_workers=workers 
+        num_workers=workers,
+        pin_memory=use_pin,
+        persistent_workers=use_persistent
     )
     
     val_loader = DataLoader(
@@ -160,7 +165,9 @@ def main():
         batch_size=batch_size,
         shuffle=False,
         collate_fn=jepa_collate_fn,
-        num_workers=workers
+        num_workers=workers,
+        pin_memory=use_pin,
+        persistent_workers=use_persistent
     )
 
     print("Initializing JEPA Model...")
@@ -359,15 +366,16 @@ def main():
         for k, v in ema_state.items():
             lightning_ckpt["state_dict"][f"ema_model.{k}"] = v
             
-        # 1. Save Last Epoch (Overwrites previous last-epoch)
-        # Find any existing last-epoch files and delete them
-        for f in os.listdir(log_dir):
-            if f.startswith("last-epoch=") and f.endswith(".ckpt"):
-                os.remove(os.path.join(log_dir, f))
-                
-        last_ckpt_path = os.path.join(log_dir, f"last-epoch={epoch:03d}.ckpt")
-        torch.save(lightning_ckpt, last_ckpt_path)
-        print(f"Saved latest checkpoint: {last_ckpt_path}")
+        # 1. Save Last Epoch (Adaptive interval to prevent disk I/O freeze)
+        save_interval = 5 if args.lang == "arabic" else 1
+        if (epoch + 1) % save_interval == 0 or (epoch + 1) >= args.epochs:
+            for f in os.listdir(log_dir):
+                if f.startswith("last-epoch=") and f.endswith(".ckpt"):
+                    os.remove(os.path.join(log_dir, f))
+                    
+            last_ckpt_path = os.path.join(log_dir, f"last-epoch={epoch:03d}.ckpt")
+            torch.save(lightning_ckpt, last_ckpt_path)
+            print(f"Saved latest checkpoint: {last_ckpt_path}")
         
         # 2. Save Best Epoch if loss improved
         if avg_val_loss < best_val_loss:
