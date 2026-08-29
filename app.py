@@ -341,28 +341,27 @@ if "mode_choice_widget" not in st.session_state:
     st.session_state["mode_choice_widget"] = "custom"
 
 # ----------------------------------------------------------------------------------------
-# Centered UI Header & Badges
+# Centered UI Header
 # ----------------------------------------------------------------------------------------
 st.markdown('<div class="main-title">🎙️ Fusion-JEPA Studio — Expressive Bilingual TTS</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Continuous Flow Matching & Decoupled Latent Joint-Embedding Predictive Architecture</div>', unsafe_allow_html=True)
-
-# Preview active checkpoint name
-current_lang_preview = st.session_state.get("lang_choice_widget", "english")
-_, ckpt_name_preview, _ = load_jepa_model(current_lang_preview)
-
-st.markdown(f"""
-<div class="badge-container">
-    <span class="badge badge-gpu">⚡ Device: {device_name}</span>
-    <span class="badge badge-arch">🧩 Architecture: MM-DiT (128x512)</span>
-    <span class="badge badge-sr">📻 Vocoder: BigVGAN v2 (44.1 kHz Studio)</span>
-    <span class="badge badge-ckpt">📁 Model Checkpoint: {ckpt_name_preview}</span>
-</div>
-""", unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------------------
 # Folded Options Expander (Justified & Vertically Aligned Grid)
 # ----------------------------------------------------------------------------------------
 with st.expander("⚙️ Options & Synthesis Configuration (Language, Sampling, Dataset)", expanded=False):
+    # Device & Checkpoint Status inside the options box
+    current_lang_preview = st.session_state.get("lang_choice_widget", "english")
+    _, ckpt_name_preview, _ = load_jepa_model(current_lang_preview)
+    st.markdown(f"""
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem 0.8rem; background: #0c0e15; border-radius: 8px; border: 1px solid #1f2330; font-size: 0.83rem; color: #94a3b8;">
+        <span>⚡ <b style="color:#c084fc;">Hardware Device:</b> <code style="color:#e2e8f0;">{device_name}</code></span>
+        <span>🧩 <b style="color:#38bdf8;">Architecture:</b> MM-DiT 128x512</span>
+        <span>📻 <b style="color:#34d399;">Vocoder:</b> BigVGAN v2 (44.1 kHz)</span>
+        <span>📁 <b style="color:#fb923c;">Checkpoint:</b> <code style="color:#e2e8f0;">{ckpt_name_preview}</code></span>
+    </div>
+    """, unsafe_allow_html=True)
+
     opt_col1, opt_col2, opt_col3 = st.columns(3)
 
     # Column 1: Language & Input Mode
