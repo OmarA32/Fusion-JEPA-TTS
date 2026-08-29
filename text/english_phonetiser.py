@@ -77,9 +77,13 @@ def normalize_numbers(text):
 
 def normalize_text(text):
     text = normalize_numbers(text)
+    # Replace hyphens, dashes, and underscores with spaces so compound words phonetize cleanly
+    text = re.sub(r'[-–—_]', ' ', text)
     # basic lowercasing and cleaning
     text = text.lower()
     text = re.sub(r'[\'\"()\[\]{}]', '', text)
+    # collapse multiple spaces into single space
+    text = re.sub(r'\s+', ' ', text).strip()
     return text
 
 def english_to_phonemes(text):
