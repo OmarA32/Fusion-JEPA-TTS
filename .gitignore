@@ -325,3 +325,4 @@ data/arabic-speech-corpus/
 *.wav
 *_duration_cache.json
 Weekly_Reports/
+Study_Guide.md
