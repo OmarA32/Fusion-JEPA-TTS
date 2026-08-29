@@ -16,9 +16,9 @@ if PROJECT_ROOT not in sys.path:
 from text import arabic_to_phonemes, phonemes_to_tokens, tokens_to_ids, phon_to_id_
 
 def download_and_extract_nawar_halabi(data_dir):
-    """Downloads and extracts the Nawar Halabi dataset if missing."""
+    """Downloads and extracts the Nawar Halabi dataset with robust retries and chunked streaming."""
     target_dir = os.path.join(data_dir, "arabic-speech-corpus")
-    if os.path.exists(target_dir):
+    if os.path.exists(target_dir) and os.path.exists(os.path.join(target_dir, "orthographic-transcript.txt")):
         return target_dir
         
     print("Nawar Halabi dataset not found locally. Auto-downloading...")
@@ -27,8 +27,56 @@ def download_and_extract_nawar_halabi(data_dir):
     
     url = "https://en.arabicspeechcorpus.com/arabic-speech-corpus.zip"
     print(f"Downloading from {url} (this may take a while)...")
-    urllib.request.urlretrieve(url, zip_path)
     
+    import time
+    import requests
+    max_retries = 5
+    for attempt in range(1, max_retries + 1):
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            initial_pos = os.path.getsize(zip_path) if os.path.exists(zip_path) else 0
+            if initial_pos > 0:
+                headers["Range"] = f"bytes={initial_pos}-"
+                mode = 'ab'
+            else:
+                mode = 'wb'
+                
+            response = requests.get(url, headers=headers, stream=True, timeout=30)
+            
+            if response.status_code not in (200, 206):
+                mode = 'wb'
+                response = requests.get(url, stream=True, timeout=30)
+                
+            total_size = int(response.headers.get('content-length', 0)) + (initial_pos if mode == 'ab' else 0)
+            
+            with open(zip_path, mode) as f:
+                downloaded = initial_pos if mode == 'ab' else 0
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            percent = (downloaded / total_size) * 100
+                            mb = downloaded / (1024 * 1024)
+                            total_mb = total_size / (1024 * 1024)
+                            sys.stdout.write(f"\rDownloading: {percent:.1f}% ({mb:.1f}/{total_mb:.1f} MB)")
+                            sys.stdout.flush()
+            print("\nDownload finished! Verifying zip integrity...")
+            
+            if zipfile.is_zipfile(zip_path):
+                break
+            else:
+                print("Zip file verification failed. Retrying...")
+                if os.path.exists(zip_path):
+                    os.remove(zip_path)
+        except Exception as e:
+            print(f"\nAttempt {attempt}/{max_retries} failed: {e}")
+            if attempt == max_retries:
+                if os.path.exists(zip_path) and not zipfile.is_zipfile(zip_path):
+                    os.remove(zip_path)
+                raise e
+            time.sleep(3)
+            
     print("Extracting zip file...")
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(data_dir)
