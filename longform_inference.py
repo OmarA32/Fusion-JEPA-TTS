@@ -25,11 +25,12 @@ from text import (
     phonemes_to_tokens
 )
 
-def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=30, min_phonemes=12):
+def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=36, min_phonemes=14):
     """
     Splits long text or phoneme streams into natural prosodic clauses.
     Handles punctuated text, unpunctuated text, and raw phoneme streams.
-    Ensures no word is ever split in half.
+    Includes Orphan-Prevention Rule: Merges trailing 1-2 words into the
+    previous chunk to ensure natural grammatical phrasing.
     """
     text = text.strip()
     if not text:
@@ -49,6 +50,7 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=30, min_phoneme
         if not words:
             continue
 
+        clause_chunks = []
         current_words = []
         current_tokens = []
 
@@ -65,8 +67,7 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=30, min_phoneme
 
             # If adding this word exceeds max_phonemes and we have enough tokens, create a chunk
             if len(current_tokens) + len(valid_word_tokens) > max_phonemes and len(current_tokens) >= min_phonemes:
-                chunk_text = " ".join(current_words)
-                chunks.append((chunk_text, current_tokens))
+                clause_chunks.append((" ".join(current_words), current_tokens))
                 current_words = [word]
                 current_tokens = valid_word_tokens
             else:
@@ -74,10 +75,26 @@ def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=30, min_phoneme
                 current_tokens.extend(valid_word_tokens)
 
         if current_words:
-            chunk_text = " ".join(current_words)
-            chunks.append((chunk_text, current_tokens))
+            # If the remaining fragment in this clause has <= 2 words and we already have prior chunks in this clause, merge it!
+            if clause_chunks and (len(current_words) <= 2 or len(current_tokens) < min_phonemes):
+                prev_text, prev_tokens = clause_chunks[-1]
+                clause_chunks[-1] = (prev_text + " " + " ".join(current_words), prev_tokens + current_tokens)
+            else:
+                clause_chunks.append((" ".join(current_words), current_tokens))
 
-    return chunks
+        chunks.extend(clause_chunks)
+
+    # 2. Final global sweep: merge any orphan chunk with <= 2 words into its predecessor
+    cleaned_chunks = []
+    for c_text, c_tokens in chunks:
+        words = c_text.split()
+        if cleaned_chunks and (len(words) <= 2 or len(c_tokens) < min_phonemes):
+            prev_text, prev_tokens = cleaned_chunks[-1]
+            cleaned_chunks[-1] = (prev_text + " " + c_text, prev_tokens + c_tokens)
+        else:
+            cleaned_chunks.append((c_text, c_tokens))
+
+    return cleaned_chunks
 
 def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None, sample_rate=44100, hop_length=512):
     """
