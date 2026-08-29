@@ -134,7 +134,7 @@ python overfit_test.py --lang arabic --epochs 500
 
 ## Authors
 
-- **Omar Alkhammash** — King Khalid University / KAUST Academy
+- **Omar Alkhammash** — KAUST Academy
 - **Abdulrahman Soliman** — KAUST Academy
 - **Hassan Alahmed** — KAUST Academy
 - **Mentor:** **Dr. Kerven Durdymyradov** — KAUST Academy AI Program
