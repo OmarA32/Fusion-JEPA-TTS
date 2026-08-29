@@ -51,31 +51,37 @@ st.markdown("""
         color: #e2e8f0;
     }
     
-    /* Centered Container Wrapper */
+    /* Clean Top Header Spacing */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+    
+    /* Centered Container Wrapper with Generous Top Padding */
     .block-container {
         max-width: 980px !important;
         margin-left: auto !important;
         margin-right: auto !important;
-        padding-top: 2rem !important;
-        padding-bottom: 3rem !important;
+        padding-top: 5.5rem !important;
+        padding-bottom: 3.5rem !important;
     }
     
     /* Header Gradient & Centered Typography */
     .main-title {
-        font-size: 2.4rem;
+        font-size: 2.15rem;
         font-weight: 800;
         letter-spacing: -0.5px;
         text-align: center;
         background: linear-gradient(135deg, #c084fc 0%, #38bdf8 50%, #fb923c 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.35rem;
+        line-height: 1.3;
     }
     .sub-title {
-        font-size: 1.05rem;
+        font-size: 1.0rem;
         color: #94a3b8;
         text-align: center;
-        margin-bottom: 1.1rem;
+        margin-bottom: 1.2rem;
     }
     
     /* Centered System Status Badges */
