@@ -16,6 +16,8 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 # Import core Fusion-JEPA components
 from models.jepa import JEPA_base
 from vocoder_manager import VocoderManager
+from data.dataset import JEPADataset
+from text.phonetise_buckwalter import buckwalter_to_arabic
 from longform_inference import (
     split_into_prosodic_chunks,
     truncate_trailing_silence,
@@ -88,14 +90,6 @@ st.markdown("""
     .badge-ckpt { background: rgba(251, 146, 60, 0.15); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.35); }
 
     /* Card Panels */
-    .ui-card {
-        background: #131620;
-        border: 1px solid #232736;
-        border-radius: 12px;
-        padding: 1.1rem 1.2rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    }
     .card-title {
         font-size: 0.95rem;
         font-weight: 700;
@@ -147,96 +141,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------------------
-# Benchmark Bank (Numbered Samples: Index 1 to 10 for Arabic & English)
-# ----------------------------------------------------------------------------------------
-BENCHMARKS = {
-    "arabic": {
-        1: {
-            "title": "Standard MSA Overview (With Full Tashkeel)",
-            "text": "يَعْتَمِدُ نِظَامُ فُيُوجِن جِيبَا عَلَى التَّعَلُّمِ الذَّاتِيِّ لِتَوْلِيدِ صَوْتٍ عَالِي الْجَوْدَةِ، وَيَتَمَيَّزُ بِقُدْرَتِهِ عَلَى مُعَالَجَةِ النُّصُوصِ الْعَرَبِيَّةِ الْمُعَقَّدَةِ بِكُلِّ دِقَّةٍ وَوُضُوحٍ."
-        },
-        2: {
-            "title": "Scientific & Technological News",
-            "text": "أَعْلَنَتْ مَدِينَةُ الْمَلِكِ عَبْدِاللَّهِ لِلْعُلُومِ وَالتَّقْنِيَّةِ عَنْ إِطْلَاقِ حُزْمَةٍ جَدِيدَةٍ مِنْ نَمَاذِجِ الذَّكَاءِ الاصْطِنَاعِيِّ الْمُتَقَدِّمَةِ لِدَعْمِ اللُّغَةِ الْعَرَبِيَّةِ فِي شَتَّى الْمَجَالَاتِ."
-        },
-        3: {
-            "title": "Quranic / Classical Cadence (Surat Al-Infitar)",
-            "text": "وَإِذَا السَّمَاءُ انْفَطَرَتْ، وَإِذَا الْكَوَاكِبُ انْتَثَرَتْ، وَإِذَا الْبِحَارُ فُجِّرَتْ، وَإِذَا الْقُبُورُ بُعْثِرَتْ، عَلِمَتْ نَفْسٌ مَا قَدَّمَتْ وَأَخَّرَتْ."
-        },
-        4: {
-            "title": "Expressive Narrative & Atmosphere",
-            "text": "كَانَ الصَّبَاحُ هَادِئًا فِي تِلْكَ الْقَرْيَةِ الْجَمِيلَةِ، حَيْثُ تَتَصَاعَدُ أَلْحَانُ الطُّيُورِ مَعَ إِشْرَاقَةِ الشَّمْسِ الذَّهَبِيَّةِ لِتَبْعَثَ الْأَمَلَ فِي نُفُوسِ الْجَمِيعِ."
-        },
-        5: {
-            "title": "Phonetic Gemination (Shaddah) & Articulation Test",
-            "text": "تَقَدَّمَ الْمُتَحَدِّثُ الرَّسْمِيُّ لِيُؤَكِّدَ تَطَوُّرَ الصِّنَاعَاتِ التِّقْنِيَّةِ الْمُتَقَدِّمَةِ وَتَفَوُّقَهَا الْمُسْتَمِرَّ فِي كَافَّةِ الْأَسْوَاقِ الْعَالَمِيَّةِ."
-        },
-        6: {
-            "title": "Short Conversational Prompt",
-            "text": "مَرْحَبًا بِكُمْ جَمِيعًا فِي هَذَا الْعَرْضِ التَّوْضِيحِيِّ لِمَشْرُوعِ فُيُوجِن جِيبَا لِتَوْلِيدِ الْكَلَامِ."
-        },
-        7: {
-            "title": "Philosophical / Literary Prose",
-            "text": "إِنَّ الْمَعْرِفَةَ نُورٌ يُضِيءُ دُرُوبَ الْحَيَاةِ، وَبِهَا تَرْتَقِي الْأُمَمُ وَتَتَحَقَّقُ أَعْظَمُ الإِنْجَازَاتِ الإِنْسَانِيَّةِ عَلَى مَرِّ الْعُصُورِ."
-        },
-        8: {
-            "title": "Formal Diplomatic Announcement",
-            "text": "أَكَّدَتِ الدُّوَلُ الْمُشَارِكَةُ فِي الْقِمَّةِ عَلَى أَهَمِّيَّةِ التَّعَاوُنِ الْمُشْتَرَكِ لِمُوَاجَهَةِ التَّحَدِّيَاتِ وَتَعْزِيزِ الأَمْنِ وَالاسْتِقْرَارِ فِي الْمِنْطَقَةِ."
-        },
-        9: {
-            "title": "Multi-Paragraph Longform Article (Part 1)",
-            "text": "يَشْهَدُ الْعَالَمُ الْيَوْمَ ثَوْرَةً تِقْنِيَّةً غَيْرَ مَسْبُوقَةٍ فِي مَجَالَاتِ الذَّكَاءِ الاصْطِنَاعِيِّ وَمُعَالَجَةِ اللُّغَاتِ الطَّبِيعِيَّةِ. وَقَدْ أَسْهَمَتْ هَذِهِ الاِبْتِكَارَاتُ فِي تَحْسِينِ جَوْدَةِ الْحَيَاةِ وَتَسْهِيلِ التَّوَاصُلِ بَيْنَ الشُّعُوبِ."
-        },
-        10: {
-            "title": "Vision 2030 Transformation (Longform Paragraph)",
-            "text": "تَسْعَى الْمَمْلَكَةُ الْعَرَبِيَّةُ السَّعُودِيَّةُ بِخُطًى حَثِيثَةٍ نَحْوَ بِنَاءِ مُسْتَقْبَلٍ رَقْمِيٍّ رَائِدٍ، يُرَكِّزُ عَلَى تَطْوِيرِ الْكِفَاءَاتِ الْوَطَنِيَّةِ وَتَوْطِينِ أَحْدَثِ التِّقْنِيَّاتِ الْعَالَمِيَّةِ لِتَحْقِيقِ رُؤْيَةِ عِشْرِينَ ثَلَاثِينَ."
-        }
-    },
-    "english": {
-        1: {
-            "title": "Fusion-JEPA Technical Overview",
-            "text": "Fusion-JEPA is a deep multimodal architecture designed for expressive text-to-speech synthesis, achieving studio-quality audio through continuous flow matching and joint-embedding representations."
-        },
-        2: {
-            "title": "LJSpeech Benchmark Reference (Sample #001)",
-            "text": "Printing, in the only sense with which we are at present concerned, differs from most if not from all other arts and crafts represented in the Exhibition."
-        },
-        3: {
-            "title": "Pangram & Consonant Clarity Test",
-            "text": "The quick brown fox jumps over the lazy dog near the vibrant riverbank under the blazing golden sunset."
-        },
-        4: {
-            "title": "Expressive Storytelling & Cadence",
-            "text": "The journey of artificial intelligence has reached an exciting milestone. Today, neural networks can understand complex linguistic patterns and generate human-like speech with remarkable naturalness."
-        },
-        5: {
-            "title": "Scientific Abstract (Diffusion vs. Flow Matching)",
-            "text": "Recent breakthroughs in continuous normalizing flows and joint-embedding predictive architectures have enabled highly efficient generative modeling without autoregressive bottlenecks."
-        },
-        6: {
-            "title": "Conversational Greeting",
-            "text": "Welcome to the live interactive demonstration of Fusion-JEPA bilingual text to speech synthesis."
-        },
-        7: {
-            "title": "Literature & Philosophical Thought",
-            "text": "In a world driven by constant innovation, the ability to communicate with clarity and emotional depth remains our greatest human achievement."
-        },
-        8: {
-            "title": "Formal Global Broadcast",
-            "text": "International delegates gathered this morning to discuss the future of sustainable technology and collaborative artificial intelligence research across leading academic institutions."
-        },
-        9: {
-            "title": "Multi-Paragraph Longform (Evolution of TTS)",
-            "text": "Speech synthesis has evolved dramatically over the last decade. From early concatenative systems to modern continuous flow matching transformers, the pursuit of truly human-like prosody has inspired researchers worldwide."
-        },
-        10: {
-            "title": "Multimodal Future Outlook (Longform Paragraph)",
-            "text": "The integration of semantic representation learning with acoustic generative models represents a promising direction for multimodal artificial intelligence, achieving higher fidelity with significantly fewer training hours."
-        }
-    }
-}
-
-# ----------------------------------------------------------------------------------------
 # Hardware Detection
 # ----------------------------------------------------------------------------------------
 @st.cache_resource
@@ -252,8 +156,17 @@ def get_device():
 device, device_name = get_device()
 
 # ----------------------------------------------------------------------------------------
-# Model & Vocoder Cached Loaders
+# Cached Dataset & Model Loaders
 # ----------------------------------------------------------------------------------------
+@st.cache_resource(show_spinner="Loading Dataset Database...")
+def load_database_cached(lang: str, db_name: str):
+    try:
+        ds = JEPADataset(split="test", lang=lang, db=db_name)
+        return ds
+    except Exception as e:
+        st.warning(f"Could not load dataset {db_name} for {lang}: {e}")
+        return None
+
 def get_latest_checkpoint(log_dir):
     if not os.path.exists(log_dir):
         return None, None, 0
@@ -337,25 +250,46 @@ def load_vocoder():
     return VocoderManager(device=device)
 
 # ----------------------------------------------------------------------------------------
-# Session State Management for Text & Sample Index
+# Text & Index Sync Callbacks
 # ----------------------------------------------------------------------------------------
-if "input_text_content" not in st.session_state:
-    st.session_state["input_text_content"] = BENCHMARKS["arabic"][1]["text"]
+def extract_text_from_db(lang: str, db_name: str, index: int):
+    ds = load_database_cached(lang, db_name)
+    if ds is None or len(ds.dataset) == 0:
+        return "يَعْتَمِدُ نِظَامُ فُيُوجِن جِيبَا عَلَى التَّعَلُّمِ الذَّاتِيِّ لِتَوْلِيدِ صَوْتٍ عَالِي الْجَوْدَةِ." if lang == "arabic" else "Fusion-JEPA is a deep multimodal architecture designed for expressive text-to-speech synthesis."
+    
+    idx = max(0, min(index, len(ds.dataset) - 1))
+    item = ds.dataset[idx]
+    raw_text = item.get("sentence", item.get("text", ""))
+    
+    # If Arabic and in Buckwalter, convert to Arabic script with Tashkeel
+    if lang == "arabic" and any(c in raw_text for c in ['>', '<', 'p', '~', 'o', 'E', 'H', 'S', 'D', 'T', 'Z', '*']):
+        try:
+            converted = buckwalter_to_arabic(raw_text)
+            if converted.strip():
+                return converted
+        except Exception:
+            pass
+    return raw_text
 
-if "input_mode" not in st.session_state:
-    st.session_state["input_mode"] = "index"
-
-def sync_text_from_index():
+def sync_text_from_db_index():
     lang = st.session_state.get("lang_choice_widget", "arabic")
-    idx = st.session_state.get("sample_idx_widget", 1)
-    st.session_state["input_text_content"] = BENCHMARKS[lang][idx]["text"]
+    db_name = st.session_state.get("db_choice_widget", "nawar_halabi" if lang == "arabic" else "ljspeech")
+    idx = st.session_state.get("db_index_widget", 0)
+    st.session_state["input_text_content"] = extract_text_from_db(lang, db_name, idx)
 
 def sync_text_on_lang_switch():
     lang = st.session_state.get("lang_choice_widget", "arabic")
-    mode = st.session_state.get("mode_choice_widget", "index")
-    if mode == "index":
-        idx = st.session_state.get("sample_idx_widget", 1)
-        st.session_state["input_text_content"] = BENCHMARKS[lang][idx]["text"]
+    mode = st.session_state.get("mode_choice_widget", "db_index")
+    default_db = "nawar_halabi" if lang == "arabic" else "ljspeech"
+    st.session_state["db_choice_widget"] = default_db
+    
+    if mode == "db_index":
+        idx = st.session_state.get("db_index_widget", 0)
+        st.session_state["input_text_content"] = extract_text_from_db(lang, default_db, idx)
+
+# Initialize Session State
+if "input_text_content" not in st.session_state:
+    st.session_state["input_text_content"] = extract_text_from_db("arabic", "nawar_halabi", 0)
 
 # ----------------------------------------------------------------------------------------
 # UI Header & Badges
@@ -379,11 +313,11 @@ st.markdown(f"""
 # ----------------------------------------------------------------------------------------
 # Configuration Grid (3 Styled Cards)
 # ----------------------------------------------------------------------------------------
-col_left, col_mid, col_right = st.columns([1.1, 1.25, 1.15])
+col_left, col_mid, col_right = st.columns([1.2, 1.2, 1.1])
 
-# CARD 1: Language & Input Mode Selection
+# CARD 1: Language & Database Index Selection
 with col_left:
-    st.markdown('<div class="card-title">🌐 1. Language & Input Mode</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-title">🌐 1. Language & Dataset Mode</div>', unsafe_allow_html=True)
     
     lang_choice = st.radio(
         "Language",
@@ -396,26 +330,43 @@ with col_left:
 
     mode_choice = st.radio(
         "Input Mode",
-        options=["index", "custom"],
-        format_func=lambda x: "🔢 Benchmark Sample Index" if x == "index" else "✏️ Custom Freeform Text",
+        options=["db_index", "custom"],
+        format_func=lambda x: "🗄️ Database Sample Index" if x == "db_index" else "✏️ Custom Freeform Text",
         horizontal=True,
         key="mode_choice_widget",
         on_change=sync_text_on_lang_switch
     )
 
-    if mode_choice == "index":
-        selected_idx = st.number_input(
-            "Select Sample Index # (1 to 10)",
-            min_value=1,
-            max_value=10,
-            value=1,
-            step=1,
-            key="sample_idx_widget",
-            on_change=sync_text_from_index,
-            help="Picks a curated evaluation sentence and automatically pastes it into the text box below."
+    if mode_choice == "db_index":
+        available_dbs = ["nawar_halabi", "common_voice", "clartts"] if lang_choice == "arabic" else ["ljspeech", "libritts"]
+        db_choice = st.selectbox(
+            "Select Database",
+            options=available_dbs,
+            key="db_choice_widget",
+            on_change=sync_text_from_db_index
         )
-        sample_meta = BENCHMARKS[lang_choice][selected_idx]
-        st.caption(f"📌 **Sample #{selected_idx}:** {sample_meta['title']}")
+        
+        # Load dataset to determine max index size
+        loaded_ds = load_database_cached(lang_choice, db_choice)
+        max_idx = len(loaded_ds.dataset) - 1 if loaded_ds and len(loaded_ds.dataset) > 0 else 1000
+
+        selected_idx = st.number_input(
+            f"Dataset Index # (0 to {max_idx})",
+            min_value=0,
+            max_value=max_idx,
+            value=0,
+            step=1,
+            key="db_index_widget",
+            on_change=sync_text_from_db_index,
+            help="Pulls the exact ground-truth sentence from the database and pastes it into the text field below."
+        )
+        
+        # Display dataset clip metadata
+        if loaded_ds and selected_idx < len(loaded_ds.dataset):
+            item_info = loaded_ds.dataset[selected_idx]
+            clip_path = item_info.get("audio_path", "")
+            clip_name = os.path.basename(clip_path) if clip_path else f"Clip #{selected_idx}"
+            st.caption(f"📁 **Clip:** `{clip_name}` (Total in DB: {len(loaded_ds.dataset)} items)")
 
 # CARD 2: Synthesis Hyperparameters
 with col_mid:
@@ -436,7 +387,7 @@ with col_mid:
         max_value=15.0,
         value=7.0,
         step=0.5,
-        help="Controls adherence to text phonemes. w=7.0 provides crystal-clear consonants and removes muffled speech."
+        help="Amplifies text conditioning. w=7.0 gives loud, crisp, and well-articulated consonants."
     )
 
 # CARD 3: Phrasing & Feature Toggles
@@ -467,7 +418,7 @@ with st.expander("🛠️ Advanced: Custom Checkpoint Override"):
 # ----------------------------------------------------------------------------------------
 # Text Input Area
 # ----------------------------------------------------------------------------------------
-st.markdown("##### ✍️ Input Text (Single Sentences or Multi-Paragraph Longform)")
+st.markdown("##### ✍️ Input Text (Loaded from DB Index or Custom Longform)")
 
 # Text area bound to session state
 main_text = st.text_area(
@@ -620,6 +571,14 @@ if generate_btn:
                 # Audio Player & Download Section
                 st.markdown("### 🎧 Audio Output")
                 st.audio(wav_bytes, format="audio/wav")
+
+                # Optional Ground-Truth Audio Player if in Database Mode
+                if mode_choice == "db_index" and loaded_ds and selected_idx < len(loaded_ds.dataset):
+                    item_gt = loaded_ds.dataset[selected_idx]
+                    gt_path = item_gt.get("audio_path", "")
+                    if gt_path and os.path.exists(gt_path):
+                        with st.expander("🔊 Listen to Ground-Truth Human Audio for Comparison"):
+                            st.audio(gt_path, format="audio/wav")
 
                 col_dl, col_space = st.columns([1, 3])
                 with col_dl:
