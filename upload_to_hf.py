@@ -11,6 +11,17 @@ def get_token():
             return data.get("HF_TOKEN", None)
     return None
 
+def get_repo_id(lang):
+    if os.path.exists("hf_repos.json"):
+        try:
+            with open("hf_repos.json", "r", encoding="utf-8") as f:
+                repos = json.load(f)
+                if lang in repos:
+                    return repos[lang]
+        except Exception:
+            pass
+    return "KAST-JEPA-QUANTIZED/Arabic" if lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+
 def upload_model(checkpoint_path, repo_id, hf_token, commit_message="Upload best JEPA-TTS model"):
     if not os.path.exists(checkpoint_path):
         print(f"Error: Checkpoint file '{checkpoint_path}' not found!")
@@ -41,6 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language model to upload")
     parser.add_argument("--token", type=str, default=None, help="Hugging Face Write Token (optional if hf_config.json exists)")
     parser.add_argument("--ckpt", type=str, default=None, help="Explicit path to a .ckpt or .pt model checkpoint to upload")
+    parser.add_argument("--repo", type=str, default=None, help="Explicit Hugging Face repo ID override")
     args = parser.parse_args()
     
     # 1. Resolve Token
@@ -50,7 +62,7 @@ if __name__ == "__main__":
         sys.exit(1)
         
     # 2. Resolve Repo
-    repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+    repo_id = args.repo or get_repo_id(args.lang)
     
     # 3. Resolve Checkpoint
     if args.ckpt and os.path.exists(args.ckpt):
