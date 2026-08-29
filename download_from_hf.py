@@ -11,13 +11,25 @@ def get_token():
             return data.get("HF_TOKEN", None)
     return None
 
+def get_repo_id(lang):
+    if os.path.exists("hf_repos.json"):
+        try:
+            with open("hf_repos.json", "r", encoding="utf-8") as f:
+                repos = json.load(f)
+                if lang in repos:
+                    return repos[lang]
+        except Exception:
+            pass
+    return "KAST-JEPA-QUANTIZED/Arabic" if lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+
 def main():
     parser = argparse.ArgumentParser(description="Download latest weights from Hugging Face")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language model to download")
+    parser.add_argument("--repo", type=str, default=None, help="Explicit Hugging Face repo ID override")
     args = parser.parse_args()
 
     token = get_token()
-    repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+    repo_id = args.repo or get_repo_id(args.lang)
     local_dir = os.path.join("training_logs", args.lang)
 
     print(f"Connecting to {repo_id}...")

@@ -23,6 +23,17 @@ import time
 warnings.filterwarnings("ignore", message=".*AccumulateGrad node's stream does not match.*")
 from huggingface_hub import HfApi, login
 
+def get_repo_id(lang):
+    if os.path.exists("hf_repos.json"):
+        try:
+            with open("hf_repos.json", "r", encoding="utf-8") as f:
+                repos = json.load(f)
+                if lang in repos:
+                    return repos[lang]
+        except Exception:
+            pass
+    return "KAST-JEPA-QUANTIZED/Arabic" if lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+
 class HuggingFaceUploadCallback(L.Callback):
     def __init__(self, every_n_epochs, repo_id, log_dir):
         self.every_n_epochs = every_n_epochs
@@ -242,7 +253,7 @@ def main():
     callbacks_list = [checkpoint_callback, TQDMProgressBar(refresh_rate=1)]
     
     if args.checkpointnum > 0:
-        repo_id = "KAST-JEPA-QUANTIZED/Arabic" if args.lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+        repo_id = get_repo_id(args.lang)
         callbacks_list.append(HuggingFaceUploadCallback(every_n_epochs=args.checkpointnum, repo_id=repo_id, log_dir=log_dir))
 
     # Robust Multi-GPU Strategy with DDP support for EMA Target Teacher parameters
