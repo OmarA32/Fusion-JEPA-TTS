@@ -38,7 +38,7 @@ def count_phonemes(text, lang="arabic"):
     except Exception:
         return list(text)
 
-def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=55, min_phonemes=18):
+def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=75, min_phonemes=20):
     """
     4-Level Hierarchical Prosodic Chunker:
     1. Sentence boundaries (\n, ., !, ?, ؟)
@@ -389,7 +389,7 @@ def generate_longform_speech(
     vocoder_instance = VocoderManager(device=device)
 
     # 4. Prosodic Chunking
-    chunks = split_into_prosodic_chunks(text, lang=lang, max_phonemes=55, min_phonemes=18)
+    chunks = split_into_prosodic_chunks(text, lang=lang, max_phonemes=75, min_phonemes=20)
     print(f"\n[Long-Form Plan] Split input into {len(chunks)} coherent prosodic clause(s):")
     for i, (c_text, _) in enumerate(chunks):
         print(f"  Clause {i+1}/{len(chunks)}: \"{c_text}\"")
