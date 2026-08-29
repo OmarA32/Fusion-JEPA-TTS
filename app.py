@@ -272,15 +272,15 @@ def extract_text_from_db(lang: str, db_name: str, index: int):
     return raw_text
 
 def sync_text_from_db_index():
-    lang = st.session_state.get("lang_choice_widget", "arabic")
-    db_name = st.session_state.get("db_choice_widget", "nawar_halabi" if lang == "arabic" else "ljspeech")
+    lang = st.session_state.get("lang_choice_widget", "english")
+    db_name = st.session_state.get("db_choice_widget", "ljspeech" if lang == "english" else "nawar_halabi")
     idx = st.session_state.get("db_index_widget", 0)
     st.session_state["input_text_content"] = extract_text_from_db(lang, db_name, idx)
 
 def sync_text_on_lang_switch():
-    lang = st.session_state.get("lang_choice_widget", "arabic")
+    lang = st.session_state.get("lang_choice_widget", "english")
     mode = st.session_state.get("mode_choice_widget", "db_index")
-    default_db = "nawar_halabi" if lang == "arabic" else "ljspeech"
+    default_db = "ljspeech" if lang == "english" else "nawar_halabi"
     st.session_state["db_choice_widget"] = default_db
     
     if mode == "db_index":
@@ -289,7 +289,7 @@ def sync_text_on_lang_switch():
 
 # Initialize Session State
 if "input_text_content" not in st.session_state:
-    st.session_state["input_text_content"] = extract_text_from_db("arabic", "nawar_halabi", 0)
+    st.session_state["input_text_content"] = extract_text_from_db("english", "ljspeech", 0)
 
 # ----------------------------------------------------------------------------------------
 # UI Header & Badges
@@ -298,7 +298,7 @@ st.markdown('<div class="main-title">🎙️ Fusion-JEPA Studio — Expressive B
 st.markdown('<div class="sub-title">Continuous Flow Matching & Decoupled Latent Joint-Embedding Predictive Architecture</div>', unsafe_allow_html=True)
 
 # Preview active checkpoint name
-current_lang_preview = st.session_state.get("lang_choice_widget", "arabic")
+current_lang_preview = st.session_state.get("lang_choice_widget", "english")
 _, ckpt_name_preview, _ = load_jepa_model(current_lang_preview)
 
 st.markdown(f"""
@@ -321,8 +321,8 @@ with col_left:
     
     lang_choice = st.radio(
         "Language",
-        options=["arabic", "english"],
-        format_func=lambda x: "🇸🇦 Arabic (العربية)" if x == "arabic" else "🇬🇧 English",
+        options=["english", "arabic"],
+        format_func=lambda x: "🇬🇧 English" if x == "english" else "🇸🇦 Arabic (العربية)",
         horizontal=True,
         key="lang_choice_widget",
         on_change=sync_text_on_lang_switch
@@ -338,7 +338,7 @@ with col_left:
     )
 
     if mode_choice == "db_index":
-        available_dbs = ["nawar_halabi", "common_voice", "clartts"] if lang_choice == "arabic" else ["ljspeech", "libritts"]
+        available_dbs = ["ljspeech", "libritts"] if lang_choice == "english" else ["nawar_halabi", "common_voice", "clartts"]
         db_choice = st.selectbox(
             "Select Database",
             options=available_dbs,
