@@ -292,7 +292,18 @@ def generate_longform_speech(
     # 5. Sequential Generation Pipeline
     for i, (chunk_text, chunk_tokens) in enumerate(chunks):
         print(f"--- Synthesizing Chunk {i+1}/{len(chunks)} ---")
-        token_ids = tokens_to_ids(chunk_tokens)
+        try:
+            if lang == "arabic":
+                tokens = arabic_to_tokens(chunk_text)
+            elif lang == "english":
+                tokens = english_to_tokens(chunk_text)
+            else:
+                tokens = chunk_tokens
+            tokens = [t for t in tokens if t in phon_to_id_]
+        except Exception:
+            tokens = [t for t in chunk_tokens if t in phon_to_id_]
+
+        token_ids = tokens_to_ids(tokens)
         text_input = [token_ids]
 
         with torch.no_grad():
@@ -311,7 +322,7 @@ def generate_longform_speech(
             clean_audio, cut_frame = truncate_trailing_silence(
                 audio_waveform=audio_wave,
                 mel_spectrogram=mel_for_vocoder,
-                num_phonemes=len(chunk_tokens),
+                num_phonemes=len(tokens),
                 sample_rate=sample_rate,
                 hop_length=512
             )
