@@ -615,65 +615,89 @@ if generate_btn:
                 wavfile.write(wav_buffer, sample_rate, audio_int16)
                 wav_bytes = wav_buffer.getvalue()
 
-                progress_bar.progress(1.0)
-                status_text.empty()
-
-                st.success("🎉 **Speech Synthesis Complete!**")
-
-                # Audio Player & Download Section
-                st.markdown("### 🎧 Audio Output")
-                st.audio(wav_bytes, format="audio/wav")
-
-                # Optional Ground-Truth Audio Player if in Database Mode
+                # Get optional ground truth path if in DB mode
+                gt_audio_path = None
                 if mode_now == "db_index":
                     db_now = st.session_state.get("db_choice_widget", "ljspeech" if lang_now == "english" else "nawar_halabi")
                     loaded_ds = load_database_cached(lang_now, db_now)
                     idx_now = st.session_state.get("db_index_widget", 0)
                     if loaded_ds and idx_now < len(loaded_ds.dataset):
                         item_gt = loaded_ds.dataset[idx_now]
-                        gt_path = item_gt.get("audio_path", "")
-                        if gt_path and os.path.exists(gt_path):
-                            with st.expander("🔊 Listen to Ground-Truth Human Audio for Comparison"):
-                                st.audio(gt_path, format="audio/wav")
+                        cand_gt = item_gt.get("audio_path", "")
+                        if cand_gt and os.path.exists(cand_gt):
+                            gt_audio_path = cand_gt
 
-                col_dl, col_space = st.columns([1.2, 2.8])
-                with col_dl:
-                    st.download_button(
-                        label="⬇️ Download Audio (.wav)",
-                        data=wav_bytes,
-                        file_name=f"fusion_jepa_{lang_now}_{int(time.time())}.wav",
-                        mime="audio/wav",
-                        use_container_width=True
-                    )
+                st.session_state["last_synthesis_result"] = {
+                    "wav_bytes": wav_bytes,
+                    "lang": lang_now,
+                    "total_gen_time": total_gen_time,
+                    "total_duration": total_duration,
+                    "rtf": rtf,
+                    "mel_segments": mel_segments,
+                    "clause_diagnostics": clause_diagnostics,
+                    "gt_audio_path": gt_audio_path,
+                    "num_chunks": len(chunks),
+                    "created_at": time.time()
+                }
 
-                # Performance Metrics (Centered 4 KPIs)
-                st.markdown("### 📊 Performance & Audio Metrics")
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("⏱️ Generation Time", f"{total_gen_time:.2f} s")
-                m2.metric("⚡ Real-Time Factor (RTF)", f"{rtf:.3f}x", help="Lower is faster. < 1.0 means faster than real-time playback.")
-                m3.metric("🎵 Total Audio Duration", f"{total_duration:.2f} s")
-                m4.metric("📻 Sampling Rate", "44.1 kHz Studio")
+                progress_bar.progress(1.0)
+                status_text.empty()
 
-                # Spectrogram Visualization
-                if save_mel and mel_segments:
-                    st.markdown("### 🌈 Stitched Mel-Spectrogram (128-Band Studio)")
-                    try:
-                        mel_stitched = np.concatenate(mel_segments, axis=1)
-                        fig, ax = plt.subplots(figsize=(14, 3.8))
-                        im = ax.imshow(mel_stitched, origin='lower', aspect='auto', cmap='viridis')
-                        ax.set_title(f"Fusion-JEPA Mel-Spectrogram — Duration: {total_duration:.2f}s | Clauses: {len(chunks)}", fontsize=12, color='white', pad=10)
-                        ax.set_xlabel("Time Frames (Hop = 512)", color='white')
-                        ax.set_ylabel("Mel Frequency Bins (128)", color='white')
-                        ax.tick_params(colors='white')
-                        fig.patch.set_facecolor('#0b0d13')
-                        ax.set_facecolor('#0b0d13')
-                        plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.25, shrink=0.6, label='Log-Mel Energy')
-                        st.pyplot(fig)
-                        plt.close(fig)
-                    except Exception as e:
-                        st.warning(f"Could not render spectrogram: {e}")
+# ----------------------------------------------------------------------------------------
+# Persistent Synthesis Results Display
+# ----------------------------------------------------------------------------------------
+if st.session_state.get("last_synthesis_result") is not None:
+    res = st.session_state["last_synthesis_result"]
+    
+    st.success("🎉 **Speech Synthesis Complete!**")
 
-                # Diagnostics Breakdown Table
-                if show_chunks and clause_diagnostics:
-                    st.markdown("### 📑 Prosodic Clause Breakdown")
-                    st.table(clause_diagnostics)
+    # Audio Player & Download Section
+    st.markdown("### 🎧 Audio Output")
+    st.audio(res["wav_bytes"], format="audio/wav")
+
+    # Optional Ground-Truth Audio Player if in Database Mode
+    if res.get("gt_audio_path") and os.path.exists(res["gt_audio_path"]):
+        with st.expander("🔊 Listen to Ground-Truth Human Audio for Comparison"):
+            st.audio(res["gt_audio_path"], format="audio/wav")
+
+    col_dl, col_space = st.columns([1.2, 2.8])
+    with col_dl:
+        st.download_button(
+            label="⬇️ Download Audio (.wav)",
+            data=res["wav_bytes"],
+            file_name=f"fusion_jepa_{res['lang']}_{int(res.get('created_at', time.time()))}.wav",
+            mime="audio/wav",
+            use_container_width=True
+        )
+
+    # Performance Metrics (Centered 4 KPIs)
+    st.markdown("### 📊 Performance & Audio Metrics")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("⏱️ Generation Time", f"{res['total_gen_time']:.2f} s")
+    m2.metric("⚡ Real-Time Factor (RTF)", f"{res['rtf']:.3f}x", help="Lower is faster. < 1.0 means faster than real-time playback.")
+    m3.metric("🎵 Total Audio Duration", f"{res['total_duration']:.2f} s")
+    m4.metric("📻 Sampling Rate", "44.1 kHz Studio")
+
+    # Spectrogram Visualization
+    if save_mel and res.get("mel_segments"):
+        st.markdown("### 🌈 Stitched Mel-Spectrogram (128-Band Studio)")
+        try:
+            mel_stitched = np.concatenate(res["mel_segments"], axis=1)
+            fig, ax = plt.subplots(figsize=(14, 3.8))
+            im = ax.imshow(mel_stitched, origin='lower', aspect='auto', cmap='viridis')
+            ax.set_title(f"Fusion-JEPA Mel-Spectrogram — Duration: {res['total_duration']:.2f}s | Clauses: {res.get('num_chunks', 1)}", fontsize=12, color='white', pad=10)
+            ax.set_xlabel("Time Frames (Hop = 512)", color='white')
+            ax.set_ylabel("Mel Frequency Bins (128)", color='white')
+            ax.tick_params(colors='white')
+            fig.patch.set_facecolor('#0b0d13')
+            ax.set_facecolor('#0b0d13')
+            plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.25, shrink=0.6, label='Log-Mel Energy')
+            st.pyplot(fig)
+            plt.close(fig)
+        except Exception as e:
+            st.warning(f"Could not render spectrogram: {e}")
+
+    # Diagnostics Breakdown Table
+    if show_chunks and res.get("clause_diagnostics"):
+        st.markdown("### 📑 Prosodic Clause Breakdown")
+        st.table(res["clause_diagnostics"])
