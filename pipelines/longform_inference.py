@@ -30,105 +30,169 @@ from text import (
     phonemes_to_tokens
 )
 
-def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=70, min_phonemes=28):
+def count_phonemes(text, lang="arabic"):
+    """Accurately counts valid phonetic tokens for a given text snippet."""
+    try:
+        toks = arabic_to_tokens(text) if lang == "arabic" else english_to_tokens(text)
+        return [t for t in toks if t in phon_to_id_]
+    except Exception:
+        return list(text)
+
+def split_into_prosodic_chunks(text, lang="arabic", max_phonemes=55, min_phonemes=18):
     """
-    Splits long text or phoneme streams into natural prosodic clauses.
-    1. Splits primarily on sentence boundaries (., !, ?, \n, ؟).
-    2. Keeps full sentences together (up to ~70 phonemes / ~5.0s) so the model receives
-       rich, natural context matching training duration.
-    3. If a single unpunctuated sentence is excessively long (>70 phonemes), sub-splits at
-       comma/pause boundaries or words without creating tiny fragments.
+    4-Level Hierarchical Prosodic Chunker:
+    1. Sentence boundaries (\n, ., !, ?, ؟)
+    2. Clause punctuation (; : — – , ، ؛) with numeric comma (23,000) & paren (Gemma, Qwen) protection.
+    3. Conjunction & Preposition acoustic phrasing (and, with, that, including, using, etc.)
+    4. Indivisible parenthetical sliding-window budget ensuring no clause ever exceeds max_phonemes.
+    5. Bidirectional orphan sweep ensuring natural sentence cadence and zero canvas overflow.
     """
     text = text.strip()
     if not text:
         return []
 
-    # 1. Primary Split: Sentence-level punctuation (. ! ? \n ؟)
-    sentence_punct = r'[\n\.\!\?؟]+'
-    raw_sentences = [s.strip() for s in re.split(sentence_punct, text) if s.strip()]
+    # 1. Protect numeric commas e.g. 23,000 -> 23__NUMCOMMA__000
+    text = re.sub(r'(\d),(\d)', r'\1__NUMCOMMA__\2', text)
     
-    if not raw_sentences:
-        raw_sentences = [text]
+    # 2. Protect parenthetical commas e.g. (Gemma, Qwen) -> (Gemma__PARENCOMMA__ Qwen)
+    def protect_parens(m):
+        return m.group(0).replace(',', '__PARENCOMMA__').replace('،', '__PARENCOMMA__')
+    text = re.sub(r'\([^)]*\)', protect_parens, text)
 
-    chunks = []
+    # 3. Primary Split: Sentence-level punctuation
+    sentence_punct = r'[\n\.\!\?؟]+'
+    raw_units = [s.strip() for s in re.split(sentence_punct, text) if s.strip()]
 
-    for sentence in raw_sentences:
-        words = sentence.split()
-        if not words:
-            continue
+    def split_clause_recursive(clause_text):
+        tokens = count_phonemes(clause_text, lang)
+        if len(tokens) <= max_phonemes:
+            return [(clause_text, tokens)]
 
-        # Count total phonemes for this sentence
-        sentence_tokens = []
-        for word in words:
-            try:
-                if lang == "arabic":
-                    word_tokens = arabic_to_tokens(word)
+        # Level 2: Clause punctuation
+        clause_punct = r'[\,\;\:\–\—\،\؛]+'
+        sub_clauses = [c.strip() for c in re.split(clause_punct, clause_text) if c.strip()]
+        if len(sub_clauses) > 1:
+            results = []
+            for sc in sub_clauses:
+                results.extend(split_clause_recursive(sc))
+            return results
+
+        # Level 3: Conjunction & Preposition Phrasing
+        if lang == 'arabic':
+            conj_pattern = r'\s+(و|مع|التي|الذي|من|إلى|على|حيث|لكن|أو|لأن|في)\s+'
+        else:
+            conj_pattern = r'\s+(and|with|that|which|including|utilizing|leveraging|using|from|while|because|but|or|where|such as)\s+'
+
+        parts = re.split(conj_pattern, clause_text, flags=re.IGNORECASE)
+        if len(parts) > 1:
+            reconstructed_segments = []
+            cur_seg = parts[0].strip()
+            i = 1
+            while i < len(parts):
+                conj = parts[i]
+                next_part = parts[i+1].strip() if i+1 < len(parts) else ''
+                combined_candidate = f'{cur_seg} {conj} {next_part}'.strip()
+                if len(count_phonemes(combined_candidate, lang)) <= max_phonemes:
+                    cur_seg = combined_candidate
                 else:
-                    word_tokens = english_to_tokens(word)
-                valid_word_tokens = [t for t in word_tokens if t in phon_to_id_]
-            except Exception:
-                valid_word_tokens = list(word)
-            sentence_tokens.extend(valid_word_tokens)
+                    if cur_seg:
+                        reconstructed_segments.append(cur_seg)
+                    cur_seg = f'{conj} {next_part}'.strip()
+                i += 2
+            if cur_seg:
+                reconstructed_segments.append(cur_seg)
 
-        # If the sentence fits comfortably in canvas (<= max_phonemes), keep it whole!
-        if len(sentence_tokens) <= max_phonemes:
-            chunks.append((" ".join(words), sentence_tokens))
-        else:
-            # Check if sub-splitting by commas/semicolons yields clean medium chunks
-            sub_clauses = [c.strip() for c in re.split(r'[\,\;\:\–\—\،\؛]+', sentence) if c.strip()]
-            
-            # If comma split exists and each clause is reasonable
-            if len(sub_clauses) > 1:
-                for c in sub_clauses:
-                    c_words = c.split()
-                    c_tokens = []
-                    for w in c_words:
-                        try:
-                            w_toks = arabic_to_tokens(w) if lang == "arabic" else english_to_tokens(w)
-                            c_tokens.extend([t for t in w_toks if t in phon_to_id_])
-                        except Exception:
-                            c_tokens.extend(list(w))
-                    chunks.append((" ".join(c_words), c_tokens))
+            if len(reconstructed_segments) > 1:
+                results = []
+                for seg in reconstructed_segments:
+                    results.extend(split_clause_recursive(seg))
+                return results
+
+        # Level 4: Group words so parenthetical expressions remain indivisible units
+        raw_words = clause_text.split()
+        words = []
+        buf = []
+        in_paren = False
+        for w in raw_words:
+            if '(' in w and ')' not in w:
+                in_paren = True
+                buf.append(w)
+            elif in_paren:
+                buf.append(w)
+                if ')' in w:
+                    in_paren = False
+                    words.append(' '.join(buf))
+                    buf = []
             else:
-                # Word-budget split for very long unpunctuated runs
-                current_words = []
-                current_tokens = []
-                sub_chunks = []
-                for word in words:
-                    try:
-                        w_toks = arabic_to_tokens(word) if lang == "arabic" else english_to_tokens(word)
-                        valid_toks = [t for t in w_toks if t in phon_to_id_]
-                    except Exception:
-                        valid_toks = list(word)
+                words.append(w)
+        if buf:
+            words.append(' '.join(buf))
 
-                    if len(current_tokens) + len(valid_toks) > max_phonemes and len(current_tokens) >= min_phonemes:
-                        sub_chunks.append((" ".join(current_words), current_tokens))
-                        current_words = [word]
-                        current_tokens = valid_toks
-                    else:
-                        current_words.append(word)
-                        current_tokens.extend(valid_toks)
+        current_words = []
+        current_tokens = []
+        sub_chunks = []
+        for word in words:
+            w_toks = count_phonemes(word, lang)
+            if len(current_tokens) + len(w_toks) > max_phonemes and len(current_tokens) >= min_phonemes:
+                sub_chunks.append((' '.join(current_words), current_tokens))
+                current_words = [word]
+                current_tokens = w_toks
+            else:
+                current_words.append(word)
+                current_tokens.extend(w_toks)
 
-                if current_words:
-                    if sub_chunks and (len(current_words) <= 3 or len(current_tokens) < min_phonemes):
-                        prev_text, prev_tokens = sub_chunks[-1]
-                        sub_chunks[-1] = (prev_text + " " + " ".join(current_words), prev_tokens + current_tokens)
-                    else:
-                        sub_chunks.append((" ".join(current_words), current_tokens))
+        if current_words:
+            if sub_chunks and len(current_tokens) < min_phonemes:
+                prev_text, prev_tokens = sub_chunks[-1]
+                if len(prev_tokens) + len(current_tokens) <= max_phonemes + 10:
+                    sub_chunks[-1] = (prev_text + ' ' + ' '.join(current_words), prev_tokens + current_tokens)
+                else:
+                    sub_chunks.append((' '.join(current_words), current_tokens))
+            else:
+                sub_chunks.append((' '.join(current_words), current_tokens))
 
-                chunks.extend(sub_chunks)
+        return sub_chunks
 
-    # 2. Final global sweep: merge any small orphan chunk (<= 3 words or < min_phonemes) into predecessor
-    cleaned_chunks = []
-    for c_text, c_tokens in chunks:
-        words = c_text.split()
-        if cleaned_chunks and (len(words) <= 3 or len(c_tokens) < min_phonemes):
-            prev_text, prev_tokens = cleaned_chunks[-1]
-            cleaned_chunks[-1] = (prev_text + " " + c_text, prev_tokens + c_tokens)
+    all_chunks = []
+    for unit in raw_units:
+        all_chunks.extend(split_clause_recursive(unit))
+
+    # Clean strings & restore protected tokens
+    cleaned = []
+    for c_text, c_tokens in all_chunks:
+        c_text = c_text.replace('__NUMCOMMA__', ',').replace('__PARENCOMMA__', ',').strip()
+        c_words = c_text.split()
+        if c_words:
+            cleaned.append((c_text, count_phonemes(c_text, lang)))
+
+    # Level 5: Bidirectional sweep to eliminate orphan fragments (< min_phonemes or <= 2 words)
+    merged = []
+    i = 0
+    while i < len(cleaned):
+        c_text, c_tokens = cleaned[i]
+        c_words = c_text.split()
+
+        if (len(c_words) <= 2 or len(c_tokens) < min_phonemes):
+            merged_backward = False
+            if merged:
+                prev_text, prev_tokens = merged[-1]
+                if len(prev_tokens) + len(c_tokens) <= max_phonemes:
+                    merged[-1] = (prev_text + ' ' + c_text, prev_tokens + c_tokens)
+                    merged_backward = True
+
+            if not merged_backward:
+                if i + 1 < len(cleaned):
+                    next_text, next_tokens = cleaned[i + 1]
+                    if len(c_tokens) + len(next_tokens) <= max_phonemes:
+                        cleaned[i + 1] = (c_text + ' ' + next_text, c_tokens + next_tokens)
+                        i += 1
+                        continue
+                merged.append((c_text, c_tokens))
         else:
-            cleaned_chunks.append((c_text, c_tokens))
+            merged.append((c_text, c_tokens))
+        i += 1
 
-    return cleaned_chunks
+    return merged
 
 def truncate_trailing_silence(audio_waveform, mel_spectrogram, num_phonemes=None, sample_rate=44100, hop_length=512):
     """
