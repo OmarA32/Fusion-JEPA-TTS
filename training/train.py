@@ -1,0 +1,353 @@
+import os
+import sys
+
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# Ensure project root is in sys.path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+import argparse
+import torch
+torch.set_float32_matmul_precision('high') # ⚡ MAXIMIZES speed on A100s and RTX 30/40 series via TF32
+import lightning as L
+from lightning.pytorch.callbacks import ModelCheckpoint, TQDMProgressBar
+from torch.utils.data import DataLoader
+
+from data.dataset import JEPADataset, jepa_collate_fn
+from models.jepa_lightning import JEPALightning
+
+import re
+import json
+import warnings
+import time
+
+# Mute harmless PyTorch DDP stream warnings
+warnings.filterwarnings("ignore", message=".*AccumulateGrad node's stream does not match.*")
+from huggingface_hub import HfApi, login
+
+def get_repo_id(lang):
+    if os.path.exists("hf_repos.json"):
+        try:
+            with open("hf_repos.json", "r", encoding="utf-8") as f:
+                repos = json.load(f)
+                if lang in repos:
+                    return repos[lang]
+        except Exception:
+            pass
+    return "KAST-JEPA-QUANTIZED/Arabic" if lang == "arabic" else "KAST-JEPA-QUANTIZED/English"
+
+class HuggingFaceUploadCallback(L.Callback):
+    def __init__(self, every_n_epochs, repo_id, log_dir):
+        self.every_n_epochs = every_n_epochs
+        self.repo_id = repo_id
+        self.log_dir = log_dir
+        self.hf_token = None
+        
+        if os.path.exists("hf_config.json"):
+            try:
+                with open("hf_config.json", "r") as f:
+                    self.hf_token = json.load(f).get("HF_TOKEN")
+            except Exception as e:
+                print(f"Error reading hf_config.json: {e}")
+                
+        if self.hf_token:
+            print(f"Hugging Face token found! Models will be automatically uploaded to {self.repo_id} every {self.every_n_epochs} epochs.")
+            try:
+                login(token=self.hf_token)
+            except Exception as e:
+                print(f"HF Login failed: {e}")
+        else:
+            print("Warning: No hf_config.json found or invalid token. Automatic HF uploads will fail.")
+            
+    def on_train_epoch_end(self, trainer, pl_module):
+        # trainer.current_epoch is 0-indexed, so add 1 to get standard epoch number
+        epoch = trainer.current_epoch + 1
+        if epoch % self.every_n_epochs == 0 and trainer.is_global_zero:
+            # Wait for PyTorch Lightning's background saver thread to finish writing the new checkpoint
+            time.sleep(3)
+            latest_ckpt, _, _ = get_latest_checkpoint(self.log_dir)
+            if latest_ckpt and self.hf_token:
+                print(f"\n[HF Upload] Epoch {epoch}: Uploading {latest_ckpt} to {self.repo_id}...")
+                try:
+                    api = HfApi()
+                    api.create_repo(repo_id=self.repo_id, exist_ok=True, repo_type="model")
+                    filename = os.path.basename(latest_ckpt)
+                    api.upload_file(
+                        path_or_fileobj=latest_ckpt,
+                        path_in_repo=filename,
+                        repo_id=self.repo_id,
+                        repo_type="model",
+                        commit_message=f"Auto-upload from Epoch {epoch}"
+                    )
+                    print(f"[HF Upload] Success!")
+                except Exception as e:
+                    print(f"[HF Upload] Error: {e}")
+
+class SaveLastCheckpointCallback(L.Callback):
+    def on_train_epoch_end(self, trainer, pl_module):
+        ckpt_path = os.path.join(trainer.default_root_dir, "last.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+
+def get_latest_checkpoint(log_dir):
+    """Finds the most recent checkpoint recursively inside the log directory."""
+    latest_pt = None
+    max_pt_epoch = -1
+    latest_ckpt = None
+    max_ckpt_epoch = -1
+    
+    if os.path.exists(log_dir):
+        for root, dirs, files in os.walk(log_dir):
+            for f in files:
+                filepath = os.path.join(root, f)
+                
+                # Check for raw .pt files
+                if f.startswith("jepa_epoch_") and f.endswith(".pt"):
+                    try:
+                        epoch = int(re.search(r"epoch_(\d+)", f).group(1))
+                        if epoch > max_pt_epoch:
+                            max_pt_epoch = epoch
+                            latest_pt = filepath
+                    except:
+                        pass
+                
+                # Check for Lightning .ckpt files
+                elif f.endswith(".ckpt"):
+                    try:
+                        if "epoch=" in f:
+                            epoch = int(re.search(r"epoch=(\d+)", f).group(1))
+                            if epoch > max_ckpt_epoch:
+                                max_ckpt_epoch = epoch
+                                latest_ckpt = filepath
+                        elif f == "last.ckpt":
+                            # last.ckpt takes absolute highest priority
+                            max_ckpt_epoch = 99999999
+                            latest_ckpt = filepath
+                    except:
+                        pass
+
+    if max_ckpt_epoch == -1 and max_pt_epoch == -1:
+        return None, None, 0
+        
+    if max_ckpt_epoch >= max_pt_epoch:
+        return latest_ckpt, "ckpt", max_ckpt_epoch
+    else:
+        return latest_pt, "pt", max_pt_epoch
+
+class ResumeEpochCallback(L.Callback):
+    def __init__(self, start_epoch, global_step):
+        self.start_epoch = start_epoch
+        self.global_step = global_step
+        
+    def on_train_start(self, trainer, pl_module):
+        trainer.fit_loop.epoch_progress.current.completed = self.start_epoch
+        print(f"Manually forced PyTorch Lightning to resume at Epoch {self.start_epoch} (Step {self.global_step})")
+
+def main():
+    parser = argparse.ArgumentParser(description="Train Lightning JEPA-TTS")
+    parser.add_argument("--resume", action="store_true", help="Resume from the latest checkpoint if it exists.")
+    parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language to train on.")
+    parser.add_argument("--db", type=str, default="nawar_halabi", choices=["common_voice", "nawar_halabi", "libritts", "ljspeech"], help="Database to use.")
+    parser.add_argument("--checkpointnum", type=int, default=0, help="Upload to Hugging Face every N epochs (0 disables).")
+    parser.add_argument("--val", action="store_true", help="Enable validation loop during training.")
+    parser.add_argument("--freeze_jepa", action="store_true", help="Freeze the JEPA backbone and train only the Diffloss head.")
+    parser.add_argument("--freeze_diffuser", action="store_true", help="Freeze the SpatialDiT diffuser and train only the JEPA backbone.")
+    parser.add_argument("--epochs", type=int, default=10000, help="Maximum number of training epochs (default: 10000).")
+    parser.add_argument("--hf_token", type=str, default=None, help="Save a Hugging Face token to hf_config.json automatically.")
+    parser.add_argument("--download_latest", action="store_true", help="Download the latest checkpoint from Hugging Face before starting.")
+    args = parser.parse_args()
+    
+    if args.hf_token:
+        with open("hf_config.json", "w") as f:
+            json.dump({"HF_TOKEN": args.hf_token}, f)
+        print("Successfully saved HF_TOKEN to hf_config.json!")
+
+    if args.download_latest:
+        print(f"Downloading latest {args.lang} checkpoint from Hugging Face...")
+        import subprocess
+        subprocess.run([sys.executable, "download_from_hf.py", "--lang", args.lang], check=False)
+    
+    valid_dbs = {
+        "arabic": ["common_voice", "nawar_halabi"],
+        "english": ["libritts", "ljspeech"]
+    }
+    if args.db not in valid_dbs[args.lang]:
+        print(f"\n[ERROR] Language/Database mismatch! You cannot use database '{args.db}' with language '{args.lang}'.")
+        print(f"Valid databases for {args.lang} are: {', '.join(valid_dbs[args.lang])}\n")
+        sys.exit(1)
+        
+    log_dir = os.path.join("training_logs", args.lang)
+    os.makedirs(log_dir, exist_ok=True)
+
+    print(f"Initializing DataModule for {args.lang.upper()} using {args.db.upper()}...")
+    # Train on the full dataset split
+    train_dataset = JEPADataset(split="train", lang=args.lang, db=args.db, max_frames=512)
+    # Dynamically optimize data loading for Linux while keeping Windows safe
+    workers = 4 if os.name != 'nt' else 0
+    
+    # Robust Multi-GPU batch scaling
+    num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    
+    # Dynamically scale batch size based on GPU Hardware to maximize VRAM
+    batch_size = 8 # Safe fallback for 12GB-16GB GPUs (down from 12 for SpatialDiT)
+    if num_gpus > 0:
+        gpu_name = torch.cuda.get_device_name(0).lower()
+        if "a100" in gpu_name:
+            batch_size = 32 # A100s (40GB/80GB) scaled down from 48 for SpatialDiT
+            print(f"🚀 Detected NVIDIA A100 GPU! Supercharging batch size to {batch_size}!")
+        elif "v100" in gpu_name or "rtx 3090" in gpu_name or "rtx 4090" in gpu_name:
+            batch_size = 16 # 24GB GPUs scaled down from 24
+            print(f"🚀 Detected {torch.cuda.get_device_name(0)}! Scaling batch size to {batch_size}.")
+    else:
+        print(f"Detected {num_gpus} GPUs. Using fallback batch size {batch_size}.")
+
+
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        collate_fn=jepa_collate_fn,
+        num_workers=workers 
+    )
+    
+    # Initialize Validation
+    val_dataset = JEPADataset(split="validation", lang=args.lang, db=args.db, max_frames=512)
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=jepa_collate_fn,
+        num_workers=workers
+    )
+
+    print("Initializing Lightning JEPA Model...")
+    model = JEPALightning(learning_rate=1e-4, language=args.lang)
+
+    if args.freeze_jepa:
+        print("Freezing JEPA (ViT) backbone! Only the Diffusion MLP will be trained.")
+        for name, param in model.model.named_parameters():
+            if not name.startswith("diffloss"):
+                param.requires_grad = False
+                
+    if args.freeze_diffuser:
+        print("Freezing SpatialDiT diffuser! Only the JEPA backbone will be trained.")
+        for name, param in model.model.named_parameters():
+            if name.startswith("diffloss"):
+                param.requires_grad = False
+                
+    # Freezing the EMA model in Lightning (if it exists as a separate attribute)
+    if hasattr(model, "ema_model"):
+        for param in model.ema_model.parameters():
+            param.requires_grad = False
+
+    # Configure checkpointing to save the best 3 epochs based on validation loss (or latest 3 if val is off)
+    if args.val:
+        checkpoint_callback = ModelCheckpoint(
+            monitor="val/total_loss",
+            mode="min",
+            every_n_epochs=1,
+            save_top_k=1,
+            save_last=True,
+            filename="best-epoch={epoch:03d}"
+        )
+    else:
+        checkpoint_callback = SaveLastCheckpointCallback()
+
+    callbacks_list = [checkpoint_callback, TQDMProgressBar(refresh_rate=1)]
+    
+    if args.checkpointnum > 0:
+        repo_id = get_repo_id(args.lang)
+        callbacks_list.append(HuggingFaceUploadCallback(every_n_epochs=args.checkpointnum, repo_id=repo_id, log_dir=log_dir))
+
+    # Robust Multi-GPU Strategy with DDP support for EMA Target Teacher parameters
+    if num_gpus > 1:
+        from lightning.pytorch.strategies import DDPStrategy
+        lightning_strategy = DDPStrategy(find_unused_parameters=True)
+    else:
+        lightning_strategy = "auto"
+    
+    trainer = L.Trainer(
+        max_epochs=args.epochs,
+        accelerator="auto", # Supercomputer will use NVIDIA CUDA naturally
+        devices="auto",
+        strategy=lightning_strategy,
+        precision="16-mixed", # ⚡ NVIDIA T4 FIX: T4s use Turing architecture which requires standard 16-bit for Tensor Core speedups!
+        limit_val_batches=1.0 if args.val else 0.0,
+        log_every_n_steps=50,
+        gradient_clip_val=1.0,
+        callbacks=callbacks_list,
+        default_root_dir=log_dir
+    )
+
+    ckpt_path = None
+    if args.resume:
+        found_path, ckpt_type, found_epoch = get_latest_checkpoint(log_dir)
+        if found_path and os.path.exists(found_path):
+            print(f"Inspecting checkpoint payload: {found_path}")
+            checkpoint = torch.load(found_path, map_location="cpu")
+            
+            if "pytorch-lightning_version" not in checkpoint:
+                print(f"Detected raw PyTorch weights! Upgrading to Lightning Checkpoint format...")
+                
+                # Synthesize a PyTorch Lightning Checkpoint
+                lightning_ckpt = {
+                    "epoch": found_epoch,
+                    "global_step": found_epoch * len(train_loader), # approximate global step
+                    "state_dict": {},
+                    "pytorch-lightning_version": L.__version__
+                }
+                
+                # Prefix model state
+                if 'model_state_dict' in checkpoint:
+                    for k, v in checkpoint['model_state_dict'].items():
+                        lightning_ckpt["state_dict"][f"model.{k}"] = v
+                if 'ema_model_state_dict' in checkpoint:
+                    for k, v in checkpoint['ema_model_state_dict'].items():
+                        lightning_ckpt["state_dict"][f"ema_model.{k}"] = v
+                        
+                temp_ckpt_path = os.path.join(log_dir, "temp_upgrade.ckpt")
+                torch.save(lightning_ckpt, temp_ckpt_path)
+                
+                ckpt_path = temp_ckpt_path
+                print(f"Resuming natively from upgraded Lightning checkpoint! (Epoch {found_epoch})")
+            else:
+                # Auto-detect if this checkpoint has the legacy diffusion weights or the new SpatialDiT weights
+                is_legacy_ckpt = False
+                test_key = "model.diffloss.net.res_blocks.0.mlp.0.weight"
+                if test_key in checkpoint["state_dict"]:
+                    if checkpoint["state_dict"][test_key].shape == torch.Size([1024, 1024]):
+                        is_legacy_ckpt = True
+                        
+                if is_legacy_ckpt or args.freeze_jepa or args.freeze_diffuser:
+                    if is_legacy_ckpt:
+                        print("Legacy diffusion architecture detected! Stripping incompatible weights and bypassing optimizer restoration...")
+                        # Manually load the weights, dropping the incompatible diffloss layers
+                        stripped_state = {k: v for k, v in checkpoint["state_dict"].items() if "diffloss" not in k}
+                        model.load_state_dict(stripped_state, strict=False)
+                    else:
+                        print("Freeze mechanism toggled on a checkpoint! Bypassing optimizer restoration to prevent shape mismatch...")
+                        model.load_state_dict(checkpoint["state_dict"], strict=False)
+                    
+                    # Inject a callback to manually force the epoch counter forward, since we are setting ckpt_path=None
+                    approx_step = checkpoint.get("global_step", found_epoch * len(train_loader))
+                    real_epoch = checkpoint.get("epoch", found_epoch)
+                    trainer.callbacks.append(ResumeEpochCallback(start_epoch=real_epoch, global_step=approx_step))
+                    
+                    ckpt_path = None
+                else:
+                    print("Modern DiT architecture detected! Resuming natively...")
+                    ckpt_path = found_path
+                
+
+        else:
+            print("No checkpoint found to resume from. Starting from scratch.")
+
+    print("Starting Training Loop!")
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=ckpt_path)
+    
+    print("Training finished! Checkpoints saved to: ", log_dir)
+
+if __name__ == "__main__":
+    main()

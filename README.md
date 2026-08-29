@@ -70,29 +70,46 @@ bash launchers/setup_env.sh
 
 ---
 
-## 💻 CLI & Launcher Reference
+## 💻 Web Interface, CLI & Launcher Reference
 
-Fusion-JEPA provides unified command-line scripts and automated batch/shell wrappers in `launchers/`.
+Fusion-JEPA provides an interactive Streamlit Web UI, Python pipelines, and categorized batch/shell launchers in `launchers/`.
 
-### 1. Speech Synthesis (`inference.py` / `launchers/inference.*`)
+### 1. Interactive Web Studio (`app.py` / `launchers/ui/`)
+
+Launch the bilingual real-time studio interface with audio playback, spectrogram visualization, and dataset indexing:
+
+```bash
+# Windows:
+launchers\ui\run_interface.bat
+
+# Linux / Mac:
+bash launchers/ui/run_interface.sh
+```
+
+---
+
+### 2. Speech Synthesis (`pipelines/inference.py` / `launchers/inference/`)
 
 Synthesizes high-fidelity 44.1 kHz audio from text prompts or dataset indices using BigVGAN v2 vocoding and adaptive silence truncation.
 
 ```bash
 # Basic English Synthesis (with automatic silence trimming)
-python inference.py --lang english --text "This is Fusion JEPA text to speech synthesis."
+python pipelines/inference.py --lang english --text "This is Fusion JEPA text to speech synthesis."
 
 # Arabic Synthesis with Mel-Spectrogram saving
-python inference.py --lang arabic --text "وَتَتَضَمَّنُ حَفَلَاتٍ لِمُوسِيقَى الْجَازِ" --save-mel
+python pipelines/inference.py --lang arabic --text "وَتَتَضَمَّنُ حَفَلَاتٍ لِمُوسِيقَى الْجَازِ" --save-mel
 
 # Synthesize directly by dataset test index (LJSpeech or Nawar Halabi)
-python inference.py --lang english --db ljspeech --index 108 --save-mel
+python pipelines/inference.py --lang english --db ljspeech --index 108 --save-mel
+
+# Longform Multi-Paragraph Synthesis (Arbitrary Length)
+python pipelines/longform_inference.py --lang arabic --text "..." --pause-ms 100
 
 # Using Launcher Wrappers:
 # Windows:
-launchers\inference.bat --lang english --text "Hello world"
+launchers\inference\inference.bat --lang english --text "Hello world"
 # Linux/Mac:
-bash launchers/inference.sh --lang english --text "Hello world"
+bash launchers/inference/inference.sh --lang english --text "Hello world"
 ```
 
 | Argument | Type | Default | Description |
@@ -110,22 +127,22 @@ bash launchers/inference.sh --lang english --text "Hello world"
 
 ---
 
-### 2. Model Training (`train.py` / `launchers/train.*`)
+### 3. Model Training (`training/train.py` / `launchers/training/`)
 
 Full distributed training of the dual-objective Fusion-JEPA architecture ($\mathcal{L}_v + \mathcal{L}_p$) with PyTorch Lightning.
 
 ```bash
 # Train on Arabic Speech Corpus (Nawar Halabi) with checkpoint syncing
-python train.py --lang arabic --db nawar_halabi --epochs 2600 --checkpointnum 150 --hf_token "hf_..."
+python training/train.py --lang arabic --db nawar_halabi --epochs 2600 --checkpointnum 150 --hf_token "hf_..."
 
 # Train on LJSpeech (English)
-python train.py --lang english --db ljspeech --epochs 2600 --checkpointnum 80 --resume
+python training/train.py --lang english --db ljspeech --epochs 2600 --checkpointnum 80 --resume
 
 # Using Launcher Wrappers:
 # Windows:
-launchers\train.bat --lang arabic --db nawar_halabi --resume
+launchers\training\train.bat --lang arabic --db nawar_halabi --resume
 # Linux/Mac:
-bash launchers/train.sh --lang arabic --db nawar_halabi --resume
+bash launchers/training/train.sh --lang arabic --db nawar_halabi --resume
 ```
 
 | Argument | Type | Default | Description |
@@ -145,20 +162,20 @@ bash launchers/train.sh --lang arabic --db nawar_halabi --resume
 
 ---
 
-### 3. Single-Sample Overfitting Verification (`overfit_train.py` & `overfit_inference.py`)
+### 4. Single-Sample Overfitting Verification (`training/overfit_train.py` & `pipelines/overfit_inference.py`)
 
 Verifies architecture convergence, flow velocity alignment, and eliminates representation collapse on a single sample:
 
 ```bash
 # 1. Overfit Train on English LJSpeech Sample (Index 108)
-python overfit_train.py --lang english --db ljspeech --index 108 --epochs 5000
+python training/overfit_train.py --lang english --db ljspeech --index 108 --epochs 5000
 
 # 2. Overfit Train on Arabic Nawar Halabi Sample (Index 107)
-python overfit_train.py --lang arabic --db nawar_halabi --index 107 --epochs 5000
+python training/overfit_train.py --lang arabic --db nawar_halabi --index 107 --epochs 5000
 
 # 3. Evaluate Overfit Synthesis & Compare Spectrograms
-python overfit_inference.py --lang english --db ljspeech --index 108 --save-mel
-python overfit_inference.py --lang arabic --db nawar_halabi --index 107 --save-mel
+python pipelines/overfit_inference.py --lang english --db ljspeech --index 108 --save-mel
+python pipelines/overfit_inference.py --lang arabic --db nawar_halabi --index 107 --save-mel
 ```
 
 | Argument | Type | Default | Description |
@@ -170,15 +187,15 @@ python overfit_inference.py --lang arabic --db nawar_halabi --index 107 --save-m
 
 ---
 
-### 4. Hugging Face Checkpoint Sync (`download_from_hf.py` & `upload_to_hf.py`)
+### 5. Hugging Face Checkpoint Sync (`tools/download_from_hf.py` & `tools/upload_to_hf.py`)
 
 ```bash
 # Download latest English or Arabic model weights
-python download_from_hf.py --lang english
-python download_from_hf.py --lang arabic
+python tools/download_from_hf.py --lang english
+python tools/download_from_hf.py --lang arabic
 
 # Upload local checkpoint
-python upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
+python tools/upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 ```
 
 ---
@@ -186,19 +203,44 @@ python upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 ## Repository Structure
 
 ```text
-├── models/                     # Fusion-JEPA Model Implementations
+├── app.py                      # Interactive Streamlit Web Studio
+├── requirements.txt            # Python Dependencies
+├── README.md                   # Project Documentation
+├── LICENSE                     # MIT License
+│
+├── pipelines/                  # Inference & Speech Generation Engines
+│   ├── inference.py            # Single-sentence synthesis CLI
+│   ├── longform_inference.py   # Multi-paragraph chunking & cross-fading
+│   └── overfit_inference.py    # Overfit evaluation script
+│
+├── training/                   # Model Training & Supercomputer Scripts
+│   ├── train.py                # Multi-GPU training script (PyTorch Lightning)
+│   ├── train_xpu.py            # Intel XPU accelerator training script
+│   ├── overfit_train.py        # Single-sample convergence tester
+│   └── supercomputer_training.ipynb # Distributed HPC training notebook
+│
+├── tools/                      # Cloud Synchronization & Evaluation Tools
+│   ├── download_from_hf.py     # Checkpoint downloader
+│   ├── upload_to_hf.py         # Checkpoint uploader
+│   ├── evaluate_metrics.py     # Objective audio quality benchmarks (RTF, MCD)
+│   └── test_vocoder_ground_truth.py # BigVGAN fidelity verification
+│
+├── launchers/                  # Categorized Environment & Execution Launchers
+│   ├── ui/                     # 1-Click Web Studio Launchers (.bat, .sh)
+│   ├── inference/              # Inference CLI Wrappers
+│   ├── training/               # Local Training Wrappers
+│   ├── tools/                  # Hugging Face & Vocoder Test Wrappers
+│   ├── setup/                  # Environment Installation Wrappers
+│   └── hpc_ibex/               # Slurm Supercomputer Scripts
+│
+├── models/                     # Fusion-JEPA Neural Implementations
 │   ├── block.py                # MM-DiT & 1D RoPE Attention Blocks
 │   ├── jepa.py                 # Core Fusion-JEPA Architecture
 │   └── jepa_lightning.py       # PyTorch Lightning Module with Lv + Lp loss
-├── data/                       # Dataset Loaders & Tokenizers
-│   ├── dataset.py              # Mel-spectrogram extraction & phoneme tokenization
-│   └── buckwalter.py           # Arabic orthographic transliteration tools
-├── BigVGAN/                    # NVIDIA BigVGAN v2 Neural Vocoder (44.1kHz Universal)
-├── launchers/                  # Automated Shell & Batch Environment Wrappers
-├── train.py                    # Main Multi-GPU Training Script (PyTorch Lightning)
-├── inference.py                # Audio Generation & Waveform Synthesis
-├── overfit_test.py             # Empirical Overfitting Verification Suite
-└── supercomputer_training.ipynb# Distributed Multi-GPU Cluster Notebook
+│
+├── data/                       # Dataset Loaders & Speech Corpora
+├── text/                       # Multilingual G2P & Phonetic Tokenizers
+└── BigVGAN/                    # NVIDIA BigVGAN v2 Vocoder (44.1kHz Universal)
 ```
 
 ---

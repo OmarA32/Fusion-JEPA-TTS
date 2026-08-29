@@ -18,7 +18,7 @@ from models.jepa import JEPA_base
 from vocoder_manager import VocoderManager
 from data.dataset import JEPADataset
 from text.phonetise_buckwalter import buckwalter_to_arabic
-from longform_inference import (
+from pipelines.longform_inference import (
     split_into_prosodic_chunks,
     truncate_trailing_silence,
     stitch_audio_segments
