@@ -1,16 +1,10 @@
-# -------------------------------
-# Python 默认忽略规则
-# -------------------------------
-
-# Byte-compiled / optimized / DLL files
+# ==============================================================================
+# Python & Bytecode
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -24,81 +18,14 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django / Flask / Scrapy / Sphinx
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-instance/
-.webassets-cache
-.scrapy
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-# .python-version
-
-# pipenv / poetry / pdm
-#Pipfile.lock
-#poetry.lock
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath
-*.sage.py
-
-# Environments
+# ==============================================================================
+# Virtual Environments
+# ==============================================================================
 .env
 .venv
 env/
@@ -107,228 +34,58 @@ ENV/
 env.bak/
 venv.bak/
 
-# Spyder / Rope / mkdocs / mypy / pyre / pytype / cython / PyCharm
-.spyderproject
-.spyproject
-.ropeproject
-/site
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.pytype/
-cython_debug/
-#.idea/
-
-# -------------------------------
-# Project-specific ignores
-# -------------------------------
-
-
-dataset/
-
-
-pretrained_models/
+# ==============================================================================
+# Model Weights & Training Checkpoints
+# ==============================================================================
 *.pt
 *.pth
 *.ckpt
 *.tar
 *.zip
-
-
-fid_stats/
-
-exps/
-misc/
-CLIP/
-
-*.log
-*.out
-
-
-test_env_setup/
-pretrained/
-training_logs/
-test_results/
-output_arabic_test.wav
-
-data/LJSpeech*
-backups/
-
-output*.wav
-*_output.wav
-# -------------------------------
-# Python 默认忽略规则
-# -------------------------------
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django / Flask / Scrapy / Sphinx
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-instance/
-.webassets-cache
-.scrapy
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-# .python-version
-
-# pipenv / poetry / pdm
-#Pipfile.lock
-#poetry.lock
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder / Rope / mkdocs / mypy / pyre / pytype / cython / PyCharm
-.spyderproject
-.spyproject
-.ropeproject
-/site
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.pytype/
-cython_debug/
-#.idea/
-
-# -------------------------------
-# Project-specific ignores
-# -------------------------------
-
-
-dataset/
-
-
 pretrained_models/
-*.pt
-*.pth
-*.ckpt
-*.tar
-*.zip
-
-
-fid_stats/
-
-exps/
-misc/
-CLIP/
-
-*.log
-*.out
-
-
-test_env_setup/
 pretrained/
 training_logs/
-test_results/
-output_arabic_test.wav
+lightning_logs/
+checkpoints/
 
+# ==============================================================================
+# Datasets & Audio Files
+# ==============================================================================
+dataset/
 data/LJSpeech*
-backups/
-
-output*.wav
-*_output.wav
-*_output_mel.png
-restore_notebook.py
-hf_config.json
-
-# Ignore datasets and large audio files
 data/arabic-speech-corpus/
 *.wav
 *_duration_cache.json
-Weekly_Reports/
-Study_Guide.md
 
-# Shelved ideas & local scratch
+# ==============================================================================
+# Synthesis Test Outputs & Logs
+# ==============================================================================
+test_results/
+output*.wav
+*_output.wav
+*_output_mel.png
+*.log
+*.out
+
+# ==============================================================================
+# Local Secrets & Scratch
+# ==============================================================================
+hf_config.json
+scratch/
 shelved_ideas/
 shelved ideas/
 "shelved ideas/"
-scratch/
+Weekly_Reports/
+Study_Guide.md
+restore_notebook.py
+
+# ==============================================================================
+# IDEs & Notebooks
+# ==============================================================================
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.spyderproject
+.ropeproject
+.mypy_cache/
+.pytest_cache/
