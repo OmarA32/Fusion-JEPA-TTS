@@ -61,6 +61,51 @@ def upload_model(checkpoint_path, repo_id, hf_token, commit_message="Upload best
     )
     print("Upload complete!")
 
+def get_latest_checkpoint(log_dir):
+    """Finds the most recent checkpoint recursively inside the log directory."""
+    import re
+    latest_pt = None
+    max_pt_epoch = -1
+    latest_ckpt = None
+    max_ckpt_epoch = -1
+    
+    if os.path.exists(log_dir):
+        for root, dirs, files in os.walk(log_dir):
+            for f in files:
+                filepath = os.path.join(root, f)
+                
+                # Check for raw .pt files
+                if f.startswith("jepa_epoch_") and f.endswith(".pt"):
+                    try:
+                        epoch = int(re.search(r"epoch_(\d+)", f).group(1))
+                        if epoch > max_pt_epoch:
+                            max_pt_epoch = epoch
+                            latest_pt = filepath
+                    except Exception:
+                        pass
+                
+                # Check for Lightning .ckpt files
+                elif f.endswith(".ckpt"):
+                    try:
+                        if "epoch=" in f:
+                            epoch = int(re.search(r"epoch=(\d+)", f).group(1))
+                            if epoch > max_ckpt_epoch:
+                                max_ckpt_epoch = epoch
+                                latest_ckpt = filepath
+                        elif f == "last.ckpt":
+                            max_ckpt_epoch = 99999999
+                            latest_ckpt = filepath
+                    except Exception:
+                        pass
+
+    if max_ckpt_epoch == -1 and max_pt_epoch == -1:
+        return None, None, 0
+        
+    if max_ckpt_epoch >= max_pt_epoch:
+        return latest_ckpt, "ckpt", max_ckpt_epoch
+    else:
+        return latest_pt, "pt", max_pt_epoch
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload latest JEPA-TTS weights to Hugging Face")
     parser.add_argument("--lang", type=str, default="arabic", choices=["arabic", "english"], help="Language model to upload")
@@ -83,7 +128,6 @@ if __name__ == "__main__":
         latest_ckpt = args.ckpt
         max_epoch = 99999999
     else:
-        from train import get_latest_checkpoint
         log_dir = os.path.join("training_logs", args.lang)
         latest_ckpt, ckpt_type, max_epoch = get_latest_checkpoint(log_dir)
     

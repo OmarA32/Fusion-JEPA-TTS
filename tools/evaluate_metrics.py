@@ -7,6 +7,10 @@ import soundfile as sf
 import librosa
 from scipy.spatial.distance import cdist
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # Setup UTMOS predictor
 print("Loading UTMOS model...")
 try:
@@ -90,7 +94,7 @@ def align_and_compute_spectral_metrics(ref_path, pred_path):
     return float(l1_mae), float(l2_mse), float(sconv)
 
 def main():
-    base_dir = r"C:\Users\g3m43\.gemini\antigravity\scratch\jepa test\test_results"
+    base_dir = os.path.join(PROJECT_ROOT, "test_results")
     
     tasks = [
         ("Arabic (Nawar Halabi)", os.path.join(base_dir, "arabic"), [108, 545, 999]),
