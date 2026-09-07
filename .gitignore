@@ -78,6 +78,8 @@ shelved ideas/
 Weekly_Reports/
 Study_Guide.md
 restore_notebook.py
+tools/evaluate_metrics.py
+evaluate_metrics.py
 
 # ==============================================================================
 # IDEs & Notebooks

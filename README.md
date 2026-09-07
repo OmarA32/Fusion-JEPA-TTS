@@ -219,10 +219,9 @@ python tools/upload_to_hf.py --lang arabic --token "YOUR_HF_TOKEN"
 │   ├── train_xpu.py            # Intel XPU accelerator training script
 │   └── overfit_train.py        # Single-sample convergence tester
 │
-├── tools/                      # Cloud Synchronization & Evaluation Tools
+├── tools/                      # Cloud Synchronization & Vocoder Tools
 │   ├── download_from_hf.py     # Checkpoint downloader
 │   ├── upload_to_hf.py         # Checkpoint uploader
-│   ├── evaluate_metrics.py     # Objective audio quality benchmarks (RTF, MCD)
 │   └── test_vocoder_ground_truth.py # BigVGAN fidelity verification
 │
 ├── launchers/                  # Categorized Environment & Execution Launchers
