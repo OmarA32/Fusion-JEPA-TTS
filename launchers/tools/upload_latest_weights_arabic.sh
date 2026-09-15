@@ -11,17 +11,18 @@
 #SBATCH --cpus-per-task=4          # 4 CPU cores for transfer & checksums
 #SBATCH --mem=16G                 # 16GB of RAM
 #SBATCH --time=02:00:00           # 2-hour time limit
-#SBATCH --output=training_logs/ibex_upload_ar_%j.txt
-#SBATCH --error=training_logs/ibex_upload_ar_%j.txt
+#SBATCH --output=training_logs/ibex_output_%j.txt
+#SBATCH --error=training_logs/ibex_error_%j.txt
 
 echo "=========================================================="
 echo "Starting Upload of Latest Arabic Weights on IBEX (CPU)"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Allocated Nodes: $SLURM_JOB_NODELIST"
+echo "Working Directory: $(pwd)"
 echo "=========================================================="
 
-# Ensure working directory is repo root
-cd "$(dirname "$0")/../.."
+# Ensure we are in the repository directory where sbatch was executed
+cd "${SLURM_SUBMIT_DIR:-.}"
 
 # 1. Initialize Git Submodules (Crucial for BigVGAN!)
 echo "Ensuring Git submodules are initialized..."
