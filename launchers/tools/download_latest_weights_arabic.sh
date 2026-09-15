@@ -1,32 +1,31 @@
 #!/bin/bash
 # ==============================================================================
-# SLURM submission script for KAUST IBEX Supercomputer -- Download Arabic Weights
+# SLURM script for KAUST IBEX Supercomputer -- Download Arabic Weights (CPU)
 # ==============================================================================
-# HOW TO DEPLOY ON IBEX:
-#   sbatch launchers/tools/download_latest_weights_arabic.sh "YOUR_HF_TOKEN_HERE"
+# HOW TO RUN ON IBEX:
+#   sbatch launchers/tools/download_latest_weights_arabic.sh "YOUR_HF_TOKEN"
 # ==============================================================================
 
 #SBATCH --job-name=dl_weights_ar
 #SBATCH --partition=batch
-#SBATCH --gres=gpu:a100:1         # Request 1x NVIDIA A100 GPU (Fast queue scheduling!)
-#SBATCH --cpus-per-task=12        # Request 12 CPU cores for fast data loading
-#SBATCH --mem=64G                 # Request 64GB of RAM
-#SBATCH --time=04:00:00           # 4-hour time limit
+#SBATCH --cpus-per-task=4          # 4 CPU cores for high-speed download
+#SBATCH --mem=16G                 # 16GB of RAM
+#SBATCH --time=02:00:00           # 2-hour time limit
 #SBATCH --output=training_logs/ibex_download_ar_%j.txt
 #SBATCH --error=training_logs/ibex_download_ar_%j.txt
 
 echo "=========================================================="
-echo "Starting Download of Latest Arabic Weights on IBEX"
+echo "Starting Download of Latest Arabic Weights on IBEX (CPU)"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Allocated Nodes: $SLURM_JOB_NODELIST"
 echo "=========================================================="
 
-# Ensure we are in the repository root directory
+# Ensure working directory is repo root and directory exists
 cd "$(dirname "$0")/../.."
 mkdir -p training_logs/arabic
 
 # 1. Initialize Git Submodules (Crucial for BigVGAN!)
-echo "Ensuring Git submodules (BigVGAN) are initialized and updated..."
+echo "Ensuring Git submodules are initialized..."
 git submodule update --init --recursive
 
 # 2. Load the optimized Ibex Machine Learning Environment
@@ -34,23 +33,20 @@ echo "Loading Ibex machine_learning module..."
 module purge
 module load machine_learning/2024.01
 
-# 3. Print GPU Status
-nvidia-smi
-
-# 4. Create and activate a 100% isolated local virtual environment
+# 3. Create and activate a 100% isolated local virtual environment
 echo "Creating isolated local environment to prevent user conflicts..."
 python -m venv ibex_tts_env --system-site-packages
 source ibex_tts_env/bin/activate
 pip install -r requirements.txt
 
-# 5. Save HF Token if provided
+# 4. Save HF Token if provided
 if [ -n "$1" ]; then
     echo "Saving HF token to hf_config.json..."
     echo "{\"HF_TOKEN\": \"$1\"}" > hf_config.json
 fi
 
-# 6. Download latest Arabic weights
+# 5. Download latest Arabic checkpoint
 echo "Downloading latest Arabic checkpoint..."
 python tools/download_from_hf.py --lang arabic
 
-echo "Job Completed!"
+echo "Arabic download job completed!"
