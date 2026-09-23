@@ -44,6 +44,6 @@ pip install -r requirements.txt
 
 # 5. Launch PyTorch Lightning Training on 1x GPU
 echo "Booting up Trainer on 1x A100 GPU for 2,600 Epochs..."
-python training/train.py --resume --download_latest --lang arabic --db nawar_halabi --epochs 2600 --hf_token "$1" --checkpointnum 150
+python training/train.py --resume --download_latest --lang arabic --db nawar_halabi --epochs 26000 --hf_token "$1" --checkpointnum 150
 
 echo "Job Completed!"
